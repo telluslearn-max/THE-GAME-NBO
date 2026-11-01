@@ -46,8 +46,17 @@ const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process
   await c.screenshot({ path: "/tmp/shots/customer-ready-375.png" });
   // waiter flow: type name once, "I've got this one", then Delivered
   await s.fill("#waiter", "Amina");
+  // the waiter reads the M-Pesa code from the client's phone and types its last 4 characters
+  const receipt = (await c.textContent("text=M-Pesa receipt")).match(/receipt\s+([A-Z0-9]+)/)[1];
+  ok(!(await s.textContent("body")).includes(receipt), "staff screen does not show the M-Pesa code before the claim");
+  await card.locator("input.last4").fill("ZZZZ");
+  await card.getByRole("button", { name: "I’ve got this one" }).click();
+  await s.waitForSelector("text=don’t match this payment");
+  ok(true, "a wrong M-Pesa ending is refused");
+  await card.locator("input.last4").fill(receipt.slice(-4));
   await card.getByRole("button", { name: "I’ve got this one" }).click();
   await s.waitForSelector(`article:has(.scode:text("${code}")) >> text=You have this`);
+  ok((await s.textContent(`article:has(.scode:text("${code}")) .slip-code`)).includes(receipt.slice(-4)), "waiter's slip shows the code + last 4");
   ok(true, "waiter claimed the order");
   await c.waitForSelector("text=You’ll be served by");
   ok((await c.textContent(".served")).includes("Amina"), "customer's page says 'You'll be served by Amina'");

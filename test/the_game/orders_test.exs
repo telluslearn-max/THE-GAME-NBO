@@ -149,19 +149,36 @@ defmodule TheGame.OrdersTest do
     end
 
     test "first claim wins, same name is a no-op, another name is told who has it", %{order: o} do
-      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "  Amina ")
-      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "amina")
-      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian")
-      assert {:error, :name_required} = Orders.claim(o.id, "   ")
+      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "  Amina ", "b3c9")
+      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "amina", "B3C9")
+      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian", "B3C9")
+      assert {:error, :name_required} = Orders.claim(o.id, "   ", "B3C9")
+    end
+
+    test "the typed last 4 must match the real M-Pesa code, and nothing is claimed otherwise", %{
+      order: o
+    } do
+      assert Orders.receipt_end(o) == "B3C9"
+      assert {:error, :code_mismatch} = Orders.claim(o.id, "Amina", "ZZZZ")
+      assert {:error, :code_mismatch} = Orders.claim(o.id, "Amina", "A2B3")
+      assert {:error, :code_required} = Orders.claim(o.id, "Amina", "B3C")
+      assert {:error, :code_required} = Orders.claim(o.id, "Amina", "")
+      assert Orders.get_order!(o.id).claimed_by_name == nil
+      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "Amina", " b3 c9 ")
+    end
+
+    test "a second waiter with a wrong code is told who has it, not about the code", %{order: o} do
+      {:ok, _} = Orders.claim(o.id, "Amina", "B3C9")
+      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian", "0000")
     end
 
     test "release hands it back; only open orders can be claimed", %{order: o} do
-      {:ok, _} = Orders.claim(o.id, "Amina")
+      {:ok, _} = Orders.claim(o.id, "Amina", "B3C9")
       assert {:ok, %{claimed_by_name: nil}} = Orders.release(o.id)
-      assert {:ok, %{claimed_by_name: "Brian"}} = Orders.claim(o.id, "Brian")
+      assert {:ok, %{claimed_by_name: "Brian"}} = Orders.claim(o.id, "Brian", "B3C9")
       {:ok, _} = Orders.deliver(o.id)
-      assert {:error, {:not_open, :completed}} = Orders.claim(o.id, "Amina")
-      assert {:error, :not_found} = Orders.claim(Ecto.UUID.generate(), "Amina")
+      assert {:error, {:not_open, :completed}} = Orders.claim(o.id, "Amina", "B3C9")
+      assert {:error, :not_found} = Orders.claim(Ecto.UUID.generate(), "Amina", "B3C9")
     end
 
     test "deliver works from paid (the bar may not use the app) and from ready, once", %{order: o} do
@@ -173,7 +190,7 @@ defmodule TheGame.OrdersTest do
     test "unpaid orders cannot be delivered or claimed", %{coke: coke} do
       {:ok, u} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
       assert {:error, {:illegal_transition, :pending_payment, :completed}} = Orders.deliver(u.id)
-      assert {:error, {:not_open, :pending_payment}} = Orders.claim(u.id, "Amina")
+      assert {:error, {:not_open, :pending_payment}} = Orders.claim(u.id, "Amina", "B3C9")
     end
 
     test "lookup by pickup code or the end of the M-Pesa code, case-insensitive, 4+ chars", %{

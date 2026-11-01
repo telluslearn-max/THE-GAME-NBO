@@ -72,35 +72,62 @@ defmodule TheGame.Orders do
   @serving [:paid, :preparing, :ready]
 
   @doc """
-  A waiter takes an order. First to tap wins; the same name again is a no-op; anyone else is
-  told who has it. The name is just typed text: no accounts, no change to anyone's routine.
+  A waiter takes an order. She types her name and the last 4 characters of the M-Pesa code,
+  read from the client's phone. Those 4 characters must match the payment Safaricom reported
+  for this order, so a faked SMS cannot be claimed. First waiter to tap wins; the same name
+  again is a no-op; anyone else is told who has it.
+
+  The full code is two halves: the system's pickup code (first 4) + the M-Pesa ending (last 4).
   """
-  def claim(order_id, name) when is_binary(name) do
+  def claim(order_id, name, last4) when is_binary(name) and is_binary(last4) do
     name = name |> String.trim() |> String.slice(0, 30)
+    typed = last4 |> String.replace(~r/\s+/, "") |> String.upcase()
 
-    if name == "" do
-      {:error, :name_required}
-    else
-      Repo.transaction(fn ->
-        case lock(order_id) do
-          nil ->
-            Repo.rollback(:not_found)
+    cond do
+      name == "" ->
+        {:error, :name_required}
 
-          %Order{status: s} when s not in @serving ->
-            Repo.rollback({:not_open, s})
+      String.length(typed) != 4 ->
+        {:error, :code_required}
 
-          %Order{claimed_by_name: nil} = o ->
-            o |> Ecto.Changeset.change(claimed_by_name: name, claimed_at: now()) |> Repo.update!()
+      true ->
+        Repo.transaction(fn ->
+          case lock(order_id) do
+            nil ->
+              Repo.rollback(:not_found)
 
-          %Order{claimed_by_name: held} = o ->
-            if String.downcase(held) == String.downcase(name),
-              do: o,
-              else: Repo.rollback({:claimed, held})
-        end
-      end)
-      |> reload_and_notify()
+            %Order{status: s} when s not in @serving ->
+              Repo.rollback({:not_open, s})
+
+            %Order{claimed_by_name: held} = o when is_binary(held) ->
+              if String.downcase(held) != String.downcase(name),
+                do: Repo.rollback({:claimed, held})
+
+              check_code!(o, typed)
+              o
+
+            %Order{} = o ->
+              check_code!(o, typed)
+
+              o
+              |> Ecto.Changeset.change(claimed_by_name: name, claimed_at: now())
+              |> Repo.update!()
+          end
+        end)
+        |> reload_and_notify()
     end
   end
+
+  defp check_code!(%Order{mpesa_receipt: receipt}, typed) do
+    unless is_binary(receipt) and String.ends_with?(String.upcase(receipt), typed),
+      do: Repo.rollback(:code_mismatch)
+  end
+
+  @doc "The last 4 characters of the M-Pesa code (what the waiter types and her slip shows)."
+  def receipt_end(%{mpesa_receipt: r}) when is_binary(r),
+    do: r |> String.upcase() |> String.slice(-4, 4)
+
+  def receipt_end(_), do: nil
 
   @doc "Give an order back (the waiter can't serve it after all)."
   def release(order_id) do

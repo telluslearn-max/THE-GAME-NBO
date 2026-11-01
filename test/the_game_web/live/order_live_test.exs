@@ -85,7 +85,7 @@ defmodule TheGameWeb.OrderLiveTest do
     Orders.mark_paid(o.id, "SRV1")
     refute render(view) =~ "You’ll be served by"
 
-    {:ok, _} = Orders.claim(o.id, "Amina")
+    {:ok, _} = Orders.claim(o.id, "Amina", "SRV1")
     assert render(view) =~ "You’ll be served by <b>Amina</b>"
 
     Orders.transition(o.id, :ready)

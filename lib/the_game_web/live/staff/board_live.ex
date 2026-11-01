@@ -52,13 +52,29 @@ defmodule TheGameWeb.Staff.BoardLive do
     {:noreply, assign(socket, waiter: name |> String.trim() |> String.slice(0, 30))}
   end
 
-  def handle_event("claim", %{"id" => id}, socket) do
-    case Orders.claim(id, socket.assigns.waiter) do
+  def handle_event("claim", %{"oid" => id, "last4" => last4}, socket) do
+    case Orders.claim(id, socket.assigns.waiter, last4) do
       {:ok, _} ->
         {:noreply, socket |> clear_flash() |> load() |> refind()}
 
       {:error, :name_required} ->
         {:noreply, put_flash(socket, :error, "Type your name in the box at the top first.")}
+
+      {:error, :code_required} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Type the last 4 characters of the M-Pesa code from the client’s phone."
+         )}
+
+      {:error, :code_mismatch} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Those 4 characters don’t match this payment. Check the M-Pesa code on the client’s phone."
+         )}
 
       {:error, {:claimed, who}} ->
         {:noreply,
@@ -128,10 +144,16 @@ defmodule TheGameWeb.Staff.BoardLive do
       <ul class="slines">
         <li :for={i <- @o.items}><b>{i.qty}×</b> {i.name}</li>
       </ul>
-      <p :if={@o.mpesa_receipt} class="spay">
-        {TheGame.Catalog.money(@o.total_cents)} · {eat(@o.paid_at)} · M-Pesa
-        <b class="mono">{@o.mpesa_receipt}</b>
+      <p :if={@o.paid_at && is_nil(@o.claimed_by_name)} class="spay">
+        Paid {eat(@o.paid_at)} · {TheGame.Catalog.money(@o.total_cents)}
       </p>
+      <div :if={@o.claimed_by_name && @o.mpesa_receipt} class="slip">
+        <span class="slip-k">Slip</span>
+        <span class="slip-code">{@o.pickup_code}<i>·</i>{Orders.receipt_end(@o)}</span>
+        <span class="slip-l">
+          {eat(@o.paid_at)} · {TheGame.Catalog.money(@o.total_cents)} · {@o.claimed_by_name}
+        </span>
+      </div>
       <p :if={@o.status == :completed} class="spay">
         Delivered{@o.claimed_by_name && " by " <> @o.claimed_by_name}
       </p>
@@ -148,14 +170,20 @@ defmodule TheGameWeb.Staff.BoardLive do
         </button>
       </div>
       <div :if={@o.status in [:paid, :preparing, :ready]} class="sact serve">
-        <button
-          :if={is_nil(@o.claimed_by_name)}
-          class="sbtn mine"
-          phx-click="claim"
-          phx-value-id={@o.id}
-        >
-          I’ve got this one
-        </button>
+        <form :if={is_nil(@o.claimed_by_name)} phx-submit="claim" class="claimform">
+          <input type="hidden" name="oid" value={@o.id} />
+          <input
+            class="text last4"
+            name="last4"
+            maxlength="4"
+            placeholder="Last 4 of M-Pesa code"
+            autocomplete="off"
+            autocapitalize="characters"
+            inputmode="text"
+            aria-label="Last 4 characters of the M-Pesa code on the client's phone"
+          />
+          <button class="sbtn mine" type="submit">I’ve got this one</button>
+        </form>
         <span :if={@o.claimed_by_name} class="chip-serve">
           {if same_name?(@o.claimed_by_name, @waiter),
             do: "You have this",
