@@ -15,6 +15,8 @@ defmodule TheGame.Payments do
   alias TheGame.Orders.Order
   alias TheGame.Payments.{Payment, Review}
 
+  def stk_enabled?, do: Mpesa.enabled?()
+
   def cooldown_seconds, do: Application.get_env(:the_game, :stk_cooldown_seconds, 60)
 
   ## Reads
@@ -49,11 +51,18 @@ defmodule TheGame.Payments do
           | :not_payable
           | :already_paid
           | :unresolved
+          | :stk_disabled
           | {:cooldown, pos_integer}
           | :gateway
 
+  def till_number, do: Application.get_env(:the_game, :till_number)
+
   @spec request_stk(String.t()) :: {:ok, Payment.t()} | {:error, request_error}
   def request_stk(order_id) do
+    if stk_enabled?(), do: do_request_stk(order_id), else: {:error, :stk_disabled}
+  end
+
+  defp do_request_stk(order_id) do
     reserved =
       Repo.transaction(fn ->
         order = from(o in Order, where: o.id == ^order_id, lock: "FOR UPDATE") |> Repo.one()

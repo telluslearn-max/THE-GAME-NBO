@@ -198,11 +198,13 @@ defmodule TheGame.OrdersTest do
       assert {:error, {:illegal_transition, :completed, :completed}} = Orders.deliver(o.id)
     end
 
-    test "unpaid orders cannot be delivered or claimed", %{coke: coke} do
+    test "unpaid orders cannot be delivered, but a waiter can take one (till payments)", %{
+      coke: coke
+    } do
       {:ok, u} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
       assert {:error, {:illegal_transition, :pending_payment, :completed}} = Orders.deliver(u.id)
 
-      assert {:error, {:not_open, :pending_payment}} =
+      assert {:ok, %{claimed_by_name: "Amina", status: :pending_payment}} =
                Orders.claim(u.id, "Amina", "B3C9", "16:52")
     end
 
@@ -228,6 +230,75 @@ defmodule TheGame.OrdersTest do
       assert Orders.lookup("B3C") == []
       assert Orders.lookup("ZZZZ") == []
       assert Orders.lookup("%%%%") == []
+    end
+  end
+
+  describe "till payments: confirm at the counter" do
+    setup %{coke: coke} do
+      {:ok, o} = Orders.create_order(order_attrs([{coke, 2}], %{payer_phone: unique_phone()}))
+      {:ok, order: o, coke: coke}
+    end
+
+    test "the waiter's note comes first; then confirming marks the order paid with who and when",
+         %{order: o} do
+      assert {:error, :needs_note} = Orders.confirm_till(o.id, "Amina")
+      {:ok, _} = Orders.claim(o.id, "Amina", "k932", "4:52 PM")
+      assert {:error, :name_required} = Orders.confirm_till(o.id, "  ")
+
+      assert {:ok, paid} = Orders.confirm_till(o.id, "Amina")
+      assert paid.status == :paid
+      assert paid.payment_method == "till"
+      assert paid.confirmed_by_name == "Amina"
+      assert paid.confirmed_at && paid.paid_at
+      assert paid.mpesa_receipt == nil
+      # the counter sees what she wrote as the M-Pesa ending
+      assert Orders.receipt_end(paid) == "K932"
+      refute Orders.code_matches?(paid)
+    end
+
+    test "confirming twice, or confirming something already paid or cancelled, is refused", %{
+      order: o
+    } do
+      {:ok, _} = Orders.claim(o.id, "Amina", "K932", "16:52")
+      {:ok, _} = Orders.confirm_till(o.id, "Amina")
+      assert {:error, {:not_pending, :paid}} = Orders.confirm_till(o.id, "Amina")
+
+      {:ok, c} =
+        Orders.create_order(order_attrs([{product(), 1}], %{payer_phone: unique_phone()}))
+
+      {:ok, _} = Orders.claim(c.id, "Amina", "K932", "16:52")
+      {:ok, _} = Orders.cancel(c.id)
+      assert {:error, {:not_pending, :cancelled}} = Orders.confirm_till(c.id, "Amina")
+      assert {:error, :not_found} = Orders.confirm_till(Ecto.UUID.generate(), "Amina")
+    end
+
+    test "an order that expired while the client was paying can still be confirmed, and retakes its stock",
+         %{coke: _} do
+      gin = product(%{stock: 3})
+      {:ok, o} = Orders.create_order(order_attrs([{gin, 2}], %{payer_phone: unique_phone()}))
+      assert Repo.get!(TheGame.Catalog.Product, gin.id).stock == 1
+      assert Orders.expire_due(DateTime.add(DateTime.utc_now(), 7200)) >= 1
+      assert Repo.get!(TheGame.Catalog.Product, gin.id).stock == 3
+
+      {:ok, _} = Orders.claim(o.id, "Amina", "K932", "16:52")
+      assert {:ok, %{status: :paid}} = Orders.confirm_till(o.id, "Amina")
+      assert Repo.get!(TheGame.Catalog.Product, gin.id).stock == 1
+    end
+
+    test "awaiting_payment lists unpaid and recently expired orders, not paid ones", %{
+      order: o,
+      coke: coke
+    } do
+      {:ok, paid} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
+      {:ok, _} = Orders.mark_paid(paid.id, "ABCD1234")
+      ids = Enum.map(Orders.awaiting_payment(), & &1.id)
+      assert o.id in ids
+      refute paid.id in ids
+    end
+
+    test "unpaid orders are found by pickup code", %{order: o} do
+      assert [%{id: id}] = Orders.lookup(o.pickup_code)
+      assert id == o.id
     end
   end
 end

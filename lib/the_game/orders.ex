@@ -70,6 +70,8 @@ defmodule TheGame.Orders do
   ## Serving: "I've got this one" and "Delivered"
 
   @serving [:paid, :preparing, :ready]
+  # a waiter may take an order before it is paid (till payments) or after it lapsed
+  @claimable [:pending_payment, :expired | @serving]
 
   @doc """
   A waiter takes an order. She writes down what she saw on the client's phone: the last 4
@@ -99,7 +101,7 @@ defmodule TheGame.Orders do
             nil ->
               Repo.rollback(:not_found)
 
-            %Order{status: s} when s not in @serving ->
+            %Order{status: s} when s not in @claimable ->
               Repo.rollback({:not_open, s})
 
             %Order{claimed_by_name: held} = o when is_binary(held) ->
@@ -130,14 +132,76 @@ defmodule TheGame.Orders do
   def paid_time(%Order{paid_at: %DateTime{} = t}), do: t
   def paid_time(_), do: nil
 
-  @doc "The last 4 characters of the M-Pesa code, as the counter sees it on the order."
+  @doc """
+  The last 4 characters of the M-Pesa code, as the counter sees it on the order. For a prompt
+  payment that is Safaricom's receipt; for a till payment it is what the waiter wrote down.
+  """
   def receipt_end(%{mpesa_receipt: r}) when is_binary(r),
     do: r |> String.upcase() |> String.slice(-4, 4)
 
+  def receipt_end(%{payment_method: "till", recorded_code: c}) when is_binary(c), do: c
   def receipt_end(_), do: nil
 
-  @doc "Does the waiter's recorded code equal the order's actual last 4? (a helpful tick, never a gate)"
-  def code_matches?(%Order{recorded_code: rc} = o), do: is_binary(rc) and rc == receipt_end(o)
+  @doc "Does the waiter's note equal Safaricom's code? Only meaningful for prompt payments."
+  def code_matches?(%Order{mpesa_receipt: r, recorded_code: rc})
+      when is_binary(r) and is_binary(rc),
+      do: rc == r |> String.upcase() |> String.slice(-4, 4)
+
+  def code_matches?(_), do: false
+
+  @doc """
+  The counter has matched the client's till payment on the POS; the waiter confirms it here.
+  Needs the waiter's note first (the M-Pesa code and time she wrote down), so there is always a
+  record of what was matched. Works for unpaid orders and for ones that expired while waiting.
+  """
+  def confirm_till(order_id, name) when is_binary(name) do
+    name = name |> String.trim() |> String.slice(0, 30)
+
+    if name == "" do
+      {:error, :name_required}
+    else
+      Repo.transaction(fn ->
+        case lock(order_id) do
+          nil ->
+            Repo.rollback(:not_found)
+
+          %Order{status: s} when s not in [:pending_payment, :expired] ->
+            Repo.rollback({:not_pending, s})
+
+          %Order{recorded_code: nil} ->
+            Repo.rollback(:needs_note)
+
+          %Order{} = o ->
+            case transition_tx(o.id, :paid, %{}) do
+              {:ok, paid} ->
+                paid
+                |> Ecto.Changeset.change(
+                  payment_method: "till",
+                  confirmed_by_name: name,
+                  confirmed_at: now()
+                )
+                |> Repo.update!()
+
+              {:error, e} ->
+                Repo.rollback(e)
+            end
+        end
+      end)
+      |> reload_and_notify()
+    end
+  end
+
+  @doc "Unpaid orders staff may need to confirm (till payments): recent, newest last."
+  def awaiting_payment do
+    since = DateTime.add(DateTime.utc_now(), -3 * 3600)
+
+    from(o in Order,
+      where: o.status in [:pending_payment, :expired] and o.inserted_at >= ^since,
+      order_by: [asc: o.inserted_at],
+      preload: [:items]
+    )
+    |> Repo.all()
+  end
 
   @doc "Give an order back (the waiter can't serve it after all)."
   def release(order_id) do
@@ -175,7 +239,15 @@ defmodule TheGame.Orders do
     else
       from(o in Order,
         where:
-          o.status in ^[:paid, :preparing, :ready, :completed, :flagged] and
+          o.status in ^[
+            :pending_payment,
+            :expired,
+            :paid,
+            :preparing,
+            :ready,
+            :completed,
+            :flagged
+          ] and
             o.inserted_at >= ^since and
             (o.pickup_code == ^t or like(o.mpesa_receipt, ^("%" <> safe))),
         order_by: [desc: o.inserted_at],

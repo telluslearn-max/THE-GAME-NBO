@@ -20,6 +20,11 @@ if System.get_env("PHX_SERVER") do
   config :the_game, TheGameWeb.Endpoint, server: true
 end
 
+# Till payment: the Buy Goods till clients pay by typing its number (the main way to pay).
+# AUTO_PROMPT=true also sends the M-Pesa prompt as soon as an order is placed.
+if till = System.get_env("TILL_NUMBER"), do: config(:the_game, till_number: till)
+if System.get_env("AUTO_PROMPT") in ~w(true 1), do: config(:the_game, auto_prompt: true)
+
 # Web Push (optional). Generate keys once with `mix generate.vapid.keys` and set all three.
 if pub = System.get_env("WEBPUSH_VAPID_PUBLIC_KEY") do
   config :the_game, vapid_public_key: pub
@@ -41,34 +46,43 @@ if config_env() == :prod do
   # --- M-Pesa ---------------------------------------------------------------
   # Production never falls back to the fake silently: set MPESA_ADAPTER=fake explicitly
   # for a demo, otherwise the Daraja credentials below are required.
+  # MPESA_ADAPTER=none: till-only. No prompts are sent and no Safaricom credentials are needed.
   mpesa_callback_token =
-    System.get_env("MPESA_CALLBACK_TOKEN") ||
-      raise "MPESA_CALLBACK_TOKEN is missing (long random string, part of the callback URL)"
+    if System.get_env("MPESA_ADAPTER") == "none" do
+      nil
+    else
+      System.get_env("MPESA_CALLBACK_TOKEN") ||
+        raise "MPESA_CALLBACK_TOKEN is missing (long random string, part of the callback URL)"
+    end
 
   config :the_game, mpesa_callback_token: mpesa_callback_token
 
-  if System.get_env("MPESA_ADAPTER") == "fake" do
-    config :the_game, mpesa_adapter: TheGame.Mpesa.Fake
-
-    # Demo only: settle every fake prompt as paid after N ms.
-    if ms = System.get_env("MPESA_FAKE_AUTO_MS") do
-      config :the_game, TheGame.Mpesa.Fake, auto: {:success, String.to_integer(ms)}
-    end
+  if System.get_env("MPESA_ADAPTER") == "none" do
+    config :the_game, mpesa_adapter: nil
   else
-    env! = fn k -> System.get_env(k) || raise "environment variable #{k} is missing" end
+    if System.get_env("MPESA_ADAPTER") == "fake" do
+      config :the_game, mpesa_adapter: TheGame.Mpesa.Fake
 
-    config :the_game, mpesa_adapter: TheGame.Mpesa.Daraja
+      # Demo only: settle every fake prompt as paid after N ms.
+      if ms = System.get_env("MPESA_FAKE_AUTO_MS") do
+        config :the_game, TheGame.Mpesa.Fake, auto: {:success, String.to_integer(ms)}
+      end
+    else
+      env! = fn k -> System.get_env(k) || raise "environment variable #{k} is missing" end
 
-    config :the_game, TheGame.Mpesa.Daraja,
-      base_url: System.get_env("MPESA_BASE_URL") || "https://api.safaricom.co.ke",
-      consumer_key: env!.("MPESA_CONSUMER_KEY"),
-      consumer_secret: env!.("MPESA_CONSUMER_SECRET"),
-      shortcode: env!.("MPESA_SHORTCODE"),
-      passkey: env!.("MPESA_PASSKEY"),
-      party_b: System.get_env("MPESA_PARTY_B"),
-      transaction_type: System.get_env("MPESA_TRANSACTION_TYPE") || "CustomerPayBillOnline",
-      callback_url:
-        "https://#{System.get_env("PHX_HOST") || "example.com"}/mpesa/callback/#{mpesa_callback_token}"
+      config :the_game, mpesa_adapter: TheGame.Mpesa.Daraja
+
+      config :the_game, TheGame.Mpesa.Daraja,
+        base_url: System.get_env("MPESA_BASE_URL") || "https://api.safaricom.co.ke",
+        consumer_key: env!.("MPESA_CONSUMER_KEY"),
+        consumer_secret: env!.("MPESA_CONSUMER_SECRET"),
+        shortcode: env!.("MPESA_SHORTCODE"),
+        passkey: env!.("MPESA_PASSKEY"),
+        party_b: System.get_env("MPESA_PARTY_B"),
+        transaction_type: System.get_env("MPESA_TRANSACTION_TYPE") || "CustomerPayBillOnline",
+        callback_url:
+          "https://#{System.get_env("PHX_HOST") || "example.com"}/mpesa/callback/#{mpesa_callback_token}"
+    end
   end
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []

@@ -58,7 +58,7 @@ select.text { padding-right: 8px; }
 .stats .v { font-size: 22px; font-weight: 800; overflow-wrap: anywhere; }
 .big { font-size: 22px; font-weight: 800; }
 @media (min-width: 900px) {
-  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+  .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 20px; align-items: start; }
   .prow { grid-template-columns: 1fr 120px 120px 130px 90px; }
   .pname { grid-column: auto; }
   .pform { grid-template-columns: 2fr 1fr 1.2fr 1.4fr auto; }
@@ -88,3 +88,5 @@ select.text { padding-right: 8px; }
 .claimform .sbtn { flex: 1 0 100%; }
 .slip-ok { font: 700 12px/1 var(--mono); color: var(--signal); }
 .slip-no { font: 700 12px/1 var(--mono); color: var(--hot); }
+.chip-unpaid { display: inline-block; margin-right: 6px; padding: 3px 7px; border-radius: 99px; border: 1px solid var(--signal); color: var(--signal); font: 800 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.chip-unpaid.gone { border-color: var(--hot); color: var(--hot); }

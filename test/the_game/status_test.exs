@@ -10,7 +10,10 @@ defmodule TheGame.StatusTest do
   test "money cannot appear from nowhere" do
     refute Status.can?(:pending_payment, :preparing)
     refute Status.can?(:pending_payment, :ready)
-    refute Status.can?(:expired, :paid)
+    refute Status.can?(:cancelled, :paid)
+    # a till payment can arrive after the reservation lapsed; staff confirm it
+    assert Status.can?(:expired, :paid)
+    refute Status.can?(:expired, :preparing)
     refute Status.can?(:cancelled, :paid)
   end
 

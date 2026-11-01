@@ -215,6 +215,70 @@ defmodule TheGameWeb.StaffTest do
       assert Orders.get_order!(o.id).recorded_code == "ZZZZ"
     end
 
+    test "till payment: unpaid order -> waiter writes the code -> confirmed at counter -> bar -> delivered",
+         %{conn: conn, gin: gin} do
+      {:ok, o} = Orders.create_order(order_attrs([{gin, 2}], %{payer_phone: "0712 345 678"}))
+      {:ok, view, html} = live(conn, "/staff")
+      {:ok, cust, _} = live(build_conn(), ~p"/order/#{o.id}")
+
+      # it shows in its own section with the client's number ending, not in New
+      assert html =~ "Waiting for payment"
+      assert html =~ o.pickup_code
+      assert html =~ "Unpaid"
+      assert html =~ "…<b class=\"mono\">5678</b>"
+      refute html =~ "Confirmed at counter"
+
+      # she must say who she is and what she saw before anything else
+      render_hook(view, "set_waiter", %{"waiter" => "Amina"})
+
+      assert render_click(view, "confirm_till", %{"id" => o.id}) =~
+               "Write the client’s M-Pesa code and time first"
+
+      assert Orders.get_order!(o.id).status == :pending_payment
+
+      html =
+        view
+        |> form("#o-#{o.id} form.claimform", %{"last4" => "k932", "time" => "4:52 PM"})
+        |> render_submit()
+
+      assert html =~ "Amina wrote"
+      assert html =~ "K932<i>·</i>4:52 PM"
+      assert html =~ "Confirmed at counter"
+      refute html =~ "code differs"
+      assert render(cust) =~ "has your code and is confirming your payment"
+
+      # the counter confirmed on the POS: one tap, and it is paid and in the bar's New list
+      html = view |> element(~s(#o-#{o.id} button), "Confirmed at counter") |> render_click()
+      assert Orders.get_order!(o.id).status == :paid
+      assert Orders.get_order!(o.id).confirmed_by_name == "Amina"
+      refute html =~ "Waiting for payment"
+      assert html =~ "till …<b class=\"mono\">K932</b>"
+      assert render(cust) =~ "Paid. The bar has your order"
+
+      view |> element(~s(#o-#{o.id} button), "Start") |> render_click()
+      view |> element(~s(#o-#{o.id} button), "Ready") |> render_click()
+      assert render(cust) =~ "Ready. Amina will bring it"
+      view |> element(~s(#o-#{o.id} button), "Delivered") |> render_click()
+      assert Orders.get_order!(o.id).status == :completed
+    end
+
+    test "an expired unpaid order is still shown (the client may have paid) and can be confirmed",
+         %{conn: conn, gin: gin} do
+      {:ok, o} = Orders.create_order(order_attrs([{gin, 1}], %{payer_phone: unique_phone()}))
+      Orders.expire_due(DateTime.add(DateTime.utc_now(), 7200))
+      {:ok, view, html} = live(conn, "/staff")
+      assert html =~ "Expired"
+
+      render_hook(view, "set_waiter", %{"waiter" => "Amina"})
+
+      view
+      |> form("#o-#{o.id} form.claimform", %{"last4" => "K932", "time" => "16:52"})
+      |> render_submit()
+
+      view |> element(~s(#o-#{o.id} button), "Confirmed at counter") |> render_click()
+      assert Orders.get_order!(o.id).status == :paid
+    end
+
     test "give back lets another waiter take it", %{conn: conn, gin: gin} do
       o = paid_order([{gin, 1}])
       {:ok, view, _} = live(conn, "/staff")

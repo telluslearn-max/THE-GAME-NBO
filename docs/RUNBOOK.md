@@ -1,5 +1,12 @@
 # Runbook
 
+## Till payments (the main way to pay)
+Set `TILL_NUMBER` to the Buy Goods till number clients pay. With no Safaricom API credentials, set
+`MPESA_ADAPTER=none` (no `MPESA_CALLBACK_TOKEN` needed); the prompt button then disappears and the till is the only way to pay.
+Flow at the bar: client pays the till → waiter writes the M-Pesa code (last 4) and time → counter matches it on the POS →
+waiter taps **Confirmed at counter** → bar prepares → waiter delivers. Orders held 30 minutes while unpaid.
+`AUTO_PROMPT=true` additionally sends an M-Pesa prompt automatically (needs a working gateway).
+
 ## Deploy (one venue, one box)
 1. `cd deploy && cp .env.example .env` and fill it in (`SECRET_KEY_BASE`, `MPESA_CALLBACK_TOKEN`, DB password, hostname).
 2. Point DNS for `PHX_HOST` at the server. `docker compose up -d`. Caddy gets the certificate; the app migrates on boot.

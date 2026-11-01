@@ -24,6 +24,24 @@ const b64 = (s) => {
 };
 
 const Hooks = {
+  // Copy a value (till number, amount) to the clipboard; the button says "Copied" for a moment.
+  Copy: {
+    mounted() {
+      this.el.addEventListener("click", async () => {
+        const text = String(this.el.dataset.copy);
+        try { await navigator.clipboard.writeText(text); }
+        catch (e) {
+          const t = document.createElement("textarea");
+          t.value = text; document.body.appendChild(t); t.select();
+          try { document.execCommand("copy"); } catch (e2) {}
+          t.remove();
+        }
+        const old = this.el.textContent; this.el.textContent = "Copied";
+        setTimeout(() => { this.el.textContent = old; }, 1400);
+      });
+    },
+  },
+
   // Staff board: remember the waiter's typed name on this device and tell the server.
   WaiterName: {
     mounted() {

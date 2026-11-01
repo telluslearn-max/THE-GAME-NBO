@@ -17,6 +17,72 @@ defmodule TheGameWeb.OrderLiveTest do
   defp live_fresh(conn, o),
     do: live(init_test_session(conn, %{"fresh_order" => o.id}), ~p"/order/#{o.id}")
 
+  describe "pay by till (the main way to pay)" do
+    setup do
+      Application.put_env(:the_game, :auto_prompt, false)
+      on_exit(fn -> Application.put_env(:the_game, :auto_prompt, true) end)
+    end
+
+    test "shows the till number, the exact amount, copy buttons and the client's code; no prompt is sent",
+         %{conn: conn, order: o} do
+      {:ok, view, _} = live_fresh(conn, o)
+      html = render(view)
+      assert html =~ "Pay by till"
+      assert html =~ "Buy Goods"
+      assert html =~ ~s(data-copy="111222")
+      assert html =~ "KES 2,500"
+      assert html =~ ~s(data-copy="2500")
+      assert html =~ ~s(phx-hook="Copy")
+      assert html =~ o.pickup_code
+      assert html =~ "tell your waiter your code"
+      assert html =~ "Don’t pay this till number again"
+      # prompting is only an option, never automatic
+      assert html =~ "Prefer a prompt on your phone?"
+      assert Repo.aggregate(Payments.Payment, :count) == 0
+    end
+
+    test "when the waiter takes the code and the counter confirms, the client's page follows live",
+         %{conn: conn, order: o} do
+      {:ok, view, _} = live_fresh(conn, o)
+      refute render(view) =~ "is confirming your payment"
+
+      {:ok, _} = Orders.claim(o.id, "Amina", "K932", "16:52")
+      assert render(view) =~ "<b>Amina</b> has your code and is confirming your payment"
+
+      {:ok, _} = Orders.confirm_till(o.id, "Amina")
+      html = render(view)
+      assert html =~ "Paid. The bar has your order"
+      assert html =~ "You’ll be served by <b>Amina</b>"
+      assert html =~ "Payment confirmed at the till"
+      refute html =~ "Pay by till"
+      assert html =~ "Pickup code"
+    end
+
+    test "without a till number configured, the page falls back to the prompt", %{
+      conn: conn,
+      order: o
+    } do
+      old = Application.get_env(:the_game, :till_number)
+      Application.put_env(:the_game, :till_number, nil)
+      on_exit(fn -> Application.put_env(:the_game, :till_number, old) end)
+      {:ok, view, _} = live_fresh(conn, o)
+      html = render(view)
+      refute html =~ "Pay by till"
+      assert html =~ "Send me an M-Pesa prompt"
+    end
+
+    test "till-only deployments (no gateway) never offer a prompt", %{conn: conn, order: o} do
+      old = Application.get_env(:the_game, :mpesa_adapter)
+      Application.put_env(:the_game, :mpesa_adapter, nil)
+      on_exit(fn -> Application.put_env(:the_game, :mpesa_adapter, old) end)
+      {:ok, view, _} = live_fresh(conn, o)
+      html = render(view)
+      assert html =~ "Pay by till"
+      refute html =~ "Send me an M-Pesa prompt"
+      assert {:error, :stk_disabled} = Payments.request_stk(o.id)
+    end
+  end
+
   test "unknown order shows a calm not-found page", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/order/#{Ecto.UUID.generate()}")
     assert html =~ "Order not found"
@@ -41,7 +107,7 @@ defmodule TheGameWeb.OrderLiveTest do
   test "a stranger holding the link never triggers a prompt", %{conn: conn, order: o} do
     {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
     html = render(view)
-    assert html =~ "Send M-Pesa prompt"
+    assert html =~ "Send me an M-Pesa prompt"
     refute html =~ "Check your phone"
     assert Repo.aggregate(Payments.Payment, :count) == 0
   end
@@ -51,7 +117,7 @@ defmodule TheGameWeb.OrderLiveTest do
     order: o
   } do
     {:ok, view, html} = live_fresh(conn, o)
-    assert html =~ "Reference"
+    assert html =~ "Your code"
     assert html =~ ~s(data-status="pending_payment")
     render(view)
     p = Payments.latest_payment(o.id)
@@ -159,7 +225,7 @@ defmodule TheGameWeb.OrderLiveTest do
     html = render(view)
     assert html =~ "Staff are checking your payment"
     assert html =~ "Please don’t pay again"
-    assert html =~ "Reference"
+    assert html =~ "Your code"
     refute html =~ "Pickup code"
   end
 

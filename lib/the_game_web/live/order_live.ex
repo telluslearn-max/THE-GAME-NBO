@@ -22,7 +22,12 @@ defmodule TheGameWeb.OrderLive do
           |> assign(confirm_cancel: false, error: nil, info: nil, busy: false)
           # Only the browser that just checked out may trigger the first prompt. Anyone else
           # holding the link (a friend, staff) can look, but never makes a phone buzz.
-          |> assign(auto_pay: session["fresh_order"] == order.id)
+          |> assign(
+            auto_pay:
+              session["fresh_order"] == order.id and
+                Application.get_env(:the_game, :auto_prompt, false)
+          )
+          |> assign(till: Payments.till_number(), stk?: Payments.stk_enabled?())
           |> load(order)
 
         # First arrival after checkout: send the prompt straight away. request_stk's own
@@ -112,6 +117,9 @@ defmodule TheGameWeb.OrderLive do
 
         {:error, :not_payable} ->
           {nil, "This order is no longer open for payment."}
+
+        {:error, :stk_disabled} ->
+          {nil, "Prompts aren’t available here. Please pay by till using the steps above."}
 
         {:error, :gateway} ->
           {nil,
@@ -213,12 +221,13 @@ defmodule TheGameWeb.OrderLive do
           @order.status in [:completed, :expired, :cancelled, :closed] && "dim"
         ]}
       >
-        <span class="ticket-k">{if has_code?(@order), do: "Pickup code", else: "Reference"}</span>
+        <span class="ticket-k">{if has_code?(@order), do: "Pickup code", else: "Your code"}</span>
         <span class="ticket-code">{@order.pickup_code}</span>
         <span class="ticket-n">
           {cond do
             @order.status == :ready -> "Give this code to your waiter"
             has_code?(@order) -> "Give this code to your waiter"
+            @order.status == :pending_payment -> "Tell your waiter this code after you pay"
             true -> "Quote this to staff if anything goes wrong"
           end}
         </span>
@@ -231,20 +240,65 @@ defmodule TheGameWeb.OrderLive do
       >
         You’ll be served by <b>{@order.claimed_by_name}</b>
       </p>
+      <p
+        :if={@order.claimed_by_name && @order.status == :pending_payment}
+        class="served"
+        aria-live="polite"
+      >
+        <b>{@order.claimed_by_name}</b> has your code and is confirming your payment
+      </p>
+
+      <section :if={@order.status == :pending_payment and @till} class="panel till" aria-live="polite">
+        <p class="p"><b>Pay by till.</b> Keep this page open.</p>
+        <ol class="steps">
+          <li>M-Pesa → <b>Lipa na M-Pesa</b> → <b>Buy Goods</b></li>
+          <li>
+            Till number <b class="mono">{@till}</b>
+            <button type="button" id="copy-till" class="copy" phx-hook="Copy" data-copy={@till}>
+              Copy
+            </button>
+          </li>
+          <li>
+            Amount <b class="mono">{money(@order.total_cents)}</b>
+            <button
+              type="button"
+              id="copy-amount"
+              class="copy"
+              phx-hook="Copy"
+              data-copy={div(@order.total_cents, 100)}
+            >
+              Copy
+            </button>
+          </li>
+          <li>
+            Then tell your waiter your code <b class="mono code">{@order.pickup_code}</b>
+            and show them the M-Pesa message.
+          </li>
+        </ol>
+        <p class="help">
+          Pay the exact amount. Paying for more drinks later? Place a new order first. Don’t pay this till number again on its own.
+        </p>
+      </section>
 
       <section :if={@order.status == :pending_payment} class="panel" aria-live="polite">
         <p :if={@pay == :none and @auto_pay} class="p">
           Sending the M-Pesa prompt to the number ending <b class="mono">{last4(@order.payer_phone)}</b>…
         </p>
-        <div :if={@pay == :none and !@auto_pay}>
+        <div :if={@pay == :none and !@auto_pay and @stk?}>
           <p class="p">
-            This order is waiting for payment of <b class="mono">{money(@order.total_cents)}</b>
-            from the number ending <b class="mono">{last4(@order.payer_phone)}</b>.
+            {if @till,
+              do: "Prefer a prompt on your phone?",
+              else: "This order is waiting for payment."} We’ll send one for
+            <b class="mono">{money(@order.total_cents)}</b>
+            to the number ending <b class="mono">{last4(@order.payer_phone)}</b>.
           </p>
-          <button class="btn" phx-click="pay" phx-disable-with="Sending…">
-            Send M-Pesa prompt
+          <button class={["btn", @till && "ghost"]} phx-click="pay" phx-disable-with="Sending…">
+            Send me an M-Pesa prompt
           </button>
         </div>
+        <p :if={@pay == :none and !@stk? and !@till} class="p">
+          This order is waiting for payment of <b class="mono">{money(@order.total_cents)}</b>. Ask your waiter how to pay.
+        </p>
 
         <div :if={match?({:waiting, _}, @pay)}>
           <p class="p">
@@ -331,14 +385,17 @@ defmodule TheGameWeb.OrderLive do
         <p class="p">
           {if @order.status == :expired,
             do: "The hold on your drinks ran out.",
-            else: "This order was cancelled."} If M-Pesa took money, show staff your M-Pesa message and the reference <b class="mono">{@order.pickup_code}</b>.
+            else: "This order was cancelled."} If you already paid, don’t pay again: show your waiter your M-Pesa message and the code <b class="mono">{@order.pickup_code}</b>.
         </p>
         <a class="btn" href={~p"/"}>Start a new order</a>
       </section>
 
       <section :if={@order.status in [:paid, :preparing, :ready]} class="panel slim">
-        <p class="help">
+        <p :if={@order.mpesa_receipt} class="help">
           M-Pesa receipt <b class="mono">{@order.mpesa_receipt}</b> · paid {eat(@order.paid_at)} EAT
+        </p>
+        <p :if={!@order.mpesa_receipt} class="help">
+          Payment confirmed at the till · {eat(@order.confirmed_at || @order.paid_at)} EAT
         </p>
       </section>
 

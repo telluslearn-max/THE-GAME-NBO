@@ -10,7 +10,10 @@ import Config
 config :the_game,
   mpesa_adapter: TheGame.Mpesa.Fake,
   stk_cooldown_seconds: 60,
-  order_ttl_seconds: 600,
+  # Till payments take a waiter a few minutes to confirm, so hold an unpaid order for 30 minutes.
+  order_ttl_seconds: 1800,
+  # Show the M-Pesa prompt automatically on arrival? Off: most clients pay at the till.
+  auto_prompt: false,
   ecto_repos: [TheGame.Repo],
   generators: [timestamp_type: :utc_datetime]
 

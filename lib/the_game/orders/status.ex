@@ -14,7 +14,8 @@ defmodule TheGame.Orders.Status do
     ready: [:completed, :flagged],
     flagged: [:preparing, :ready, :completed, :closed],
     completed: [:closed],
-    expired: [:flagged, :closed],
+    # a till payment can arrive after the reservation lapsed; staff confirm it and stock is retaken
+    expired: [:paid, :flagged, :closed],
     cancelled: [:flagged, :closed],
     closed: []
   }

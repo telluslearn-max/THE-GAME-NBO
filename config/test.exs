@@ -39,3 +39,6 @@ config :the_game,
 config :the_game, push_sender: TheGame.Push.Memory, vapid_public_key: "test-public-key"
 # Tests roll back their database changes, so a shared menu cache would leak between them.
 config :the_game, menu_cache: false
+
+# Tests exercise the prompt path by default; till tests opt out.
+config :the_game, auto_prompt: true, till_number: "111222"

@@ -93,6 +93,35 @@ defmodule TheGameWeb.Staff.BoardLive do
     end
   end
 
+  # The counter has matched the till payment on the POS: the order becomes paid and goes to the bar.
+  def handle_event("confirm_till", %{"id" => id}, socket) do
+    case Orders.confirm_till(id, socket.assigns.waiter) do
+      {:ok, _} ->
+        {:noreply, socket |> clear_flash() |> load() |> refind()}
+
+      {:error, :name_required} ->
+        {:noreply, put_flash(socket, :error, "Type your name in the box at the top first.")}
+
+      {:error, :needs_note} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Write the client’s M-Pesa code and time first (I’ve got this one)."
+         )}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           "That order can’t be confirmed any more. The board has been refreshed."
+         )
+         |> load()
+         |> refind()}
+    end
+  end
+
   def handle_event("release", %{"id" => id}, socket) do
     Orders.release(id)
     {:noreply, socket |> load() |> refind()}
@@ -123,6 +152,7 @@ defmodule TheGameWeb.Staff.BoardLive do
     queue = Orders.queue()
 
     assign(socket,
+      awaiting: Orders.awaiting_payment(),
       paid: Enum.filter(queue, &(&1.status == :paid)),
       preparing: Enum.filter(queue, &(&1.status == :preparing)),
       ready: Enum.filter(queue, &(&1.status == :ready)),
@@ -149,15 +179,25 @@ defmodule TheGameWeb.Staff.BoardLive do
       <ul class="slines">
         <li :for={i <- @o.items}><b>{i.qty}×</b> {i.name}</li>
       </ul>
+      <p :if={@o.status in [:pending_payment, :expired]} class="spay">
+        <b class={["chip-unpaid", @o.status == :expired && "gone"]}>
+          {if @o.status == :expired, do: "Expired", else: "Unpaid"}
+        </b>
+        {TheGame.Catalog.money(@o.total_cents)} · phone …<b class="mono">{TheGame.Phone.last4(@o.payer_phone)}</b>
+      </p>
       <p :if={@o.paid_at} class="spay">
         Paid <b class="mono">{eat(Orders.paid_time(@o))}</b>
-        · {TheGame.Catalog.money(@o.total_cents)} · M-Pesa …<b class="mono">{Orders.receipt_end(@o)}</b>
+        · {TheGame.Catalog.money(@o.total_cents)} · {if @o.payment_method == "till",
+          do: "till",
+          else: "M-Pesa"} …<b class="mono">{Orders.receipt_end(@o)}</b>
       </p>
       <p :if={@o.claimed_by_name && @o.recorded_code} class="slip">
         <span class="slip-k">{@o.claimed_by_name} wrote</span>
         <span class="slip-code">{@o.recorded_code}<i>·</i>{@o.recorded_time}</span>
-        <span :if={Orders.code_matches?(@o)} class="slip-ok">✓ code matches</span>
-        <span :if={!Orders.code_matches?(@o)} class="slip-no">code differs from the order’s</span>
+        <span :if={@o.mpesa_receipt && Orders.code_matches?(@o)} class="slip-ok">✓ code matches</span>
+        <span :if={@o.mpesa_receipt && !Orders.code_matches?(@o)} class="slip-no">
+          code differs from the order’s
+        </span>
       </p>
       <p :if={@o.status == :completed} class="spay">
         Delivered{@o.claimed_by_name && " by " <> @o.claimed_by_name}
@@ -174,7 +214,10 @@ defmodule TheGameWeb.Staff.BoardLive do
           {label}
         </button>
       </div>
-      <div :if={@o.status in [:paid, :preparing, :ready]} class="sact serve">
+      <div
+        :if={@o.status in [:pending_payment, :expired, :paid, :preparing, :ready]}
+        class="sact serve"
+      >
         <form :if={is_nil(@o.claimed_by_name)} phx-submit="claim" class="claimform">
           <input type="hidden" name="oid" value={@o.id} />
           <input
@@ -213,7 +256,22 @@ defmodule TheGameWeb.Staff.BoardLive do
         >
           Give back
         </button>
-        <button class="sbtn" phx-click="deliver" phx-value-id={@o.id} phx-disable-with="…">
+        <button
+          :if={@o.status in [:pending_payment, :expired] && @o.claimed_by_name}
+          class="sbtn go"
+          phx-click="confirm_till"
+          phx-value-id={@o.id}
+          phx-disable-with="…"
+        >
+          Confirmed at counter
+        </button>
+        <button
+          :if={@o.status in [:paid, :preparing, :ready]}
+          class="sbtn"
+          phx-click="deliver"
+          phx-value-id={@o.id}
+          phx-disable-with="…"
+        >
           Delivered
         </button>
       </div>
@@ -287,6 +345,10 @@ defmodule TheGameWeb.Staff.BoardLive do
       </p>
 
       <div id="board" class="board" phx-hook="QueueBell" data-new={length(@paid)}>
+        <section :if={@awaiting != []}>
+          <h2 class="sh">Waiting for payment <span class="n">{length(@awaiting)}</span></h2>
+          <.card :for={o <- @awaiting} o={o} waiter={@waiter} draft={@draft} />
+        </section>
         <section>
           <h2 class="sh">New <span class="n">{length(@paid)}</span></h2>
           <p :if={@paid == []} class="none">Nothing new.</p>

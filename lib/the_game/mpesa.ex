@@ -23,7 +23,9 @@ defmodule TheGame.Mpesa do
   @callback stk_push(push) :: {:ok, push_result} | {:error, term}
   @callback stk_query(checkout_request_id :: String.t()) :: {:ok, query_result} | {:error, term}
 
-  def adapter, do: Application.fetch_env!(:the_game, :mpesa_adapter)
+  @doc "nil when the deployment is till-only (MPESA_ADAPTER=none): no prompts are sent."
+  def adapter, do: Application.get_env(:the_game, :mpesa_adapter)
+  def enabled?, do: adapter() != nil
   def stk_push(p), do: adapter().stk_push(p)
   def stk_query(id), do: adapter().stk_query(id)
 
