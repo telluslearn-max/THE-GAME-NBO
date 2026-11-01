@@ -13,6 +13,36 @@ defmodule TheGame.Release do
     for repo <- repos() do
       {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
     end
+
+    bootstrap()
+  end
+
+  @doc """
+  First-boot setup from the environment, so a hosted deploy needs no shell access:
+  `STAFF_EMAIL` + `STAFF_PASSWORD` create the first staff login when none exists, and
+  `SEED_MENU=true` loads the starter menu when the menu is empty. Both are no-ops afterwards.
+  """
+  def bootstrap do
+    email = System.get_env("STAFF_EMAIL")
+    password = System.get_env("STAFF_PASSWORD")
+    seed? = System.get_env("SEED_MENU") in ~w(true 1)
+
+    {:ok, _, _} =
+      Ecto.Migrator.with_repo(TheGame.Repo, fn repo ->
+        if email && password && repo.aggregate(TheGame.Staff.User, :count) == 0 do
+          case TheGame.Staff.create_user(%{email: email, password: password}) do
+            {:ok, u} -> IO.puts("bootstrap: created staff #{u.email}")
+            {:error, cs} -> IO.inspect(cs.errors, label: "bootstrap: staff not created")
+          end
+        end
+
+        if seed? and repo.aggregate(TheGame.Catalog.Category, :count) == 0 do
+          Code.eval_file(Application.app_dir(@app, "priv/repo/seeds.exs"))
+          IO.puts("bootstrap: starter menu loaded")
+        end
+      end)
+
+    :ok
   end
 
   def create_staff(email, password) do

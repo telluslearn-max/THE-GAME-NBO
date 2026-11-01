@@ -77,6 +77,27 @@ if config_env() == :prod do
     # ssl: true,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    # Managed Postgres (Neon, Render): DATABASE_SSL=true verifies the server certificate.
+    # Serverless databases wake from idle, so allow a patient first connection.
+    ssl: System.get_env("DATABASE_SSL") in ~w(true 1),
+    ssl_opts:
+      (case URI.parse(database_url) do
+         %URI{host: host} when is_binary(host) ->
+           [
+             verify: :verify_peer,
+             cacerts: :public_key.cacerts_get(),
+             server_name_indication: String.to_charlist(host),
+             customize_hostname_check: [
+               match_fun: :public_key.pkix_verify_hostname_match_fun(:https)
+             ]
+           ]
+
+         _ ->
+           []
+       end),
+    queue_target: 5_000,
+    timeout: 30_000,
+    connect_timeout: 30_000,
     socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.

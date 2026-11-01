@@ -10,9 +10,8 @@ su postgres -c "psql -q -c 'drop database if exists $DB' -c 'create database $DB
 export DATABASE_URL=ecto://postgres:postgres@localhost/$DB PORT=$PORT PHX_HOST=localhost \
   SECRET_KEY_BASE=$(head -c 64 /dev/urandom | base64 | tr -d '\n=') \
   MPESA_ADAPTER=fake MPESA_FAKE_AUTO_MS=2000 MPESA_CALLBACK_TOKEN=smoke-token
-echo "== migrate";      $REL/migrate
-echo "== seed";         $REL/the_game eval "TheGame.Release.seed()"
-echo "== create staff"; $REL/the_game eval 'TheGame.Release.create_staff("owner@thegame.test", "a long staff passphrase")'
+echo "== migrate + bootstrap from env (staff login + starter menu)"
+STAFF_EMAIL=owner@thegame.test STAFF_PASSWORD="a long staff passphrase" SEED_MENU=true $REL/migrate
 echo "== start";        ($REL/server > /tmp/release.log 2>&1 &)
 for i in $(seq 1 40); do curl -fs "http://localhost:$PORT/healthz" >/dev/null 2>&1 && break; sleep 1; done
 fail=0
