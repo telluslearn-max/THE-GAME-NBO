@@ -32,7 +32,8 @@ defmodule TheGameWeb.OrderLiveTest do
       assert html =~ ~s(data-copy="111222")
       assert html =~ "KES 2,500"
       assert html =~ ~s(data-copy="2500")
-      assert html =~ ~s(phx-hook="Copy")
+      # Copy works on the plain page (app.js), not only after the live connection joins
+      refute html =~ ~s(phx-hook="Copy")
       assert html =~ "Order reference"
       assert html =~ o.pickup_code
       # the client is never told to give a code to the waiter: she writes the M-Pesa code and time

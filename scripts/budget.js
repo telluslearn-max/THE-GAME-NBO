@@ -12,7 +12,7 @@ const BUDGET = {
   menu: { html: 3 * KB, total: 9 * KB },
   cart: { html: 3 * KB, total: 11 * KB },
   order: { html: 5 * KB, total: 45 * KB },
-  staff_login: { html: 2 * KB, total: 9 * KB },
+  staff_login: { html: 2 * KB, total: 9.5 * KB },
   assets: { logo: 3.5 * KB, css: 3 * KB, "staff.css": 2 * KB, "app.js": 2 * KB, "cart.js": 2 * KB, "live.js": 35 * KB },
 };
 

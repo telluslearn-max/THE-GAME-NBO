@@ -260,7 +260,7 @@ defmodule TheGameWeb.OrderLive do
           <li>M-Pesa → <b>Lipa na M-Pesa</b> → <b>Buy Goods</b></li>
           <li>
             Till number <b class="mono">{@till}</b>
-            <button type="button" id="copy-till" class="copy" phx-hook="Copy" data-copy={@till}>
+            <button type="button" id="copy-till" class="copy" data-copy={@till}>
               Copy
             </button>
           </li>
@@ -270,7 +270,6 @@ defmodule TheGameWeb.OrderLive do
               type="button"
               id="copy-amount"
               class="copy"
-              phx-hook="Copy"
               data-copy={div(@order.total_cents, 100)}
             >
               Copy

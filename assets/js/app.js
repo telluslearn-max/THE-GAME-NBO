@@ -15,6 +15,24 @@
 
   window.TG = { read: read, write: write, kes: kes, MAX: MAX };
 
+  // Copy buttons (till number, amount): work on first tap, with or without a live connection.
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-copy]");
+    if (!b) return;
+    var text = String(b.dataset.copy), old = b.dataset.label || b.textContent;
+    b.dataset.label = old;
+    function done(ok) { b.textContent = ok ? "Copied" : "Copy failed"; setTimeout(function () { b.textContent = old; }, 1400); }
+    function legacy() {
+      var t = document.createElement("textarea"), ok = false;
+      t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { ok = document.execCommand("copy"); } catch (x) {}
+      t.remove(); return ok;
+    }
+    (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(function () { done(true); }, function () { done(legacy()); });
+  });
+
   // Landing on an order page right after checkout: the cart has been spent.
   if (/[?&]new=1\b/.test(location.search)) {
     write({});
