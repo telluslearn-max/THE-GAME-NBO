@@ -30,7 +30,9 @@ defmodule TheGameWeb.Endpoint do
     # Un-fingerprinted files (sw.js, manifest, icons) must always revalidate; fingerprinted
     # assets get Phoenix's immutable one-year cache automatically.
     cache_control_for_etags: "public, max-age=0, must-revalidate",
-    only: TheGameWeb.static_paths()
+    only: ~w(assets icons sw.js),
+    # fingerprinted names (logo-<hash>.svg) must still match their un-fingerprinted prefix
+    only_matching: ~w(favicon logo manifest robots)
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.

@@ -5,7 +5,7 @@
 .text:focus { border-color: var(--signal); }
 select.text { padding-right: 8px; }
 .sbar { padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: 6px; max-width: 1180px; }
-.sbar-r1 { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sbar-r1 { flex-wrap: wrap; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .switch { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px 0 6px; border-radius: 99px; border: 1px solid var(--line-2); background: transparent; font-weight: 700; font-size: 13px; }
 .switch .knob { width: 32px; height: 20px; border-radius: 99px; background: var(--signal); position: relative; transition: background .15s; }
 .switch .knob::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--signal-ink); transition: right .15s; }

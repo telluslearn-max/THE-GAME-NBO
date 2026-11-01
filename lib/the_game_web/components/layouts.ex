@@ -3,17 +3,13 @@ defmodule TheGameWeb.Layouts do
 
   embed_templates "layouts/*"
 
-  # The wordmark is the Anton display face converted to a single SVG path at build time:
-  # zero font downloads, crisp at any size, ~1.1 KB inline.
-  @path_file Path.join(:code.priv_dir(:the_game) |> to_string(), "wordmark.path")
-  @external_resource @path_file
-  @wordmark_path File.read!(@path_file)
-
+  # The logo: the TG shield mark (traced from the brand artwork) beside the serif wordmark.
+  # One small fingerprinted SVG, cached forever and precached by the service worker, so it
+  # costs a page nothing after the first visit. Source paths live in priv/logo_mark.path and
+  # priv/wordmark.path.
   def wordmark(assigns) do
-    assigns = assign(assigns, :d, @wordmark_path)
-
     ~H"""
-    <svg viewBox="0 12 409 90" role="img" aria-hidden="true"><path d={@d} /></svg>
+    <img src={~p"/logo.svg"} alt="THE GAME" width="187" height="19" />
     """
   end
 end

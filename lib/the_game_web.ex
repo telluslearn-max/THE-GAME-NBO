@@ -17,7 +17,8 @@ defmodule TheGameWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets icons favicon.svg robots.txt manifest.webmanifest sw.js)
+  def static_paths,
+    do: ~w(assets icons favicon.svg logo.svg robots.txt manifest.webmanifest sw.js)
 
   def router do
     quote do

@@ -5,7 +5,7 @@ built to be small on the wire, fast on a cheap phone and safe with money.
 
 | | |
 |---|---|
-| First visit, menu | **6.4 KB** (brotli): HTML 2.2 + CSS 2.7 + JS 1.4 |
+| First visit, menu | **8.3 KB** (brotli): HTML 1.9 + CSS 2.7 + JS 1.4 + logo 2.2 (cached forever) |
 | Repeat visit | 1 request (menu HTML revalidating); CSS/JS from the service worker |
 | Works offline | menu, cart; money pages deliberately never cached |
 | Live order page | 39 KB (includes the LiveView client, loaded only there) |

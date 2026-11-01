@@ -44,9 +44,10 @@ a { color: inherit; }
 /* Header */
 .top { display: flex; align-items: center; justify-content: space-between; padding-top: max(14px, env(safe-area-inset-top)); padding-bottom: 12px; }
 .brand { display: block; line-height: 0; }
-.brand svg { height: 22px; width: auto; fill: var(--text); }
+.brand img { display: block; height: 19px; width: auto; }
 .top nav { display: flex; align-items: center; gap: 6px; }
 .pill { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 7px 9px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+.pill .pt { }
 .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); }
 .pill.off::before { background: var(--hot); }
 .navlink { text-decoration: none; font-weight: 600; font-size: 14px; padding: 10px 8px; min-height: 44px; display: inline-flex; align-items: center; color: var(--dim); }
@@ -118,7 +119,7 @@ a { color: inherit; }
 /* Wider screens: two columns of rows */
 @media (min-width: 720px) {
   .top { padding-top: 22px; }
-  .brand svg { height: 26px; }
+  .brand img { height: 26px; }
   .rows { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; }
   .lede { font-size: 17px; }
 }
@@ -181,3 +182,9 @@ a { color: inherit; }
 
 .full { width: 100%; }
 .btn.gap { margin-top: 22px; }
+
+@media (max-width: 380px) {
+  /* narrow phones: the status pill collapses to its dot (text stays for screen readers) */
+  .pill .pt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pill { padding: 9px; }
+}

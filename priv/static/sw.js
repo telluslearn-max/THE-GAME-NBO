@@ -20,7 +20,7 @@ self.addEventListener("install", (event) => {
       try {
         const res = await fetch(path, { cache: "reload" });
         const html = await res.clone().text();
-        (html.match(/\/assets\/[^"'\s>]+/g) || []).forEach((a) => assets.add(a));
+        (html.match(/\/(?:assets\/|logo\.svg)[^"'\s>]*/g) || []).forEach((a) => assets.add(a));
         if (path === "/" && res.ok) await cache.put("/", res);
       } catch (e) {}
     }
@@ -46,7 +46,7 @@ self.addEventListener("fetch", (event) => {
   const p = url.pathname;
   if (p.startsWith("/staff") || p.startsWith("/live") || p.startsWith("/mpesa") || p === "/menu.json" || p === "/sw.js") return;
 
-  if (p.startsWith("/assets/") || p.startsWith("/icons/") || p === "/favicon.svg") {
+  if (p.startsWith("/assets/") || p.startsWith("/icons/") || p === "/favicon.svg" || p === "/logo.svg") {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
       const hit = await cache.match(req);

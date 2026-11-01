@@ -1,7 +1,9 @@
 <header class="wrap top">
   <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
   <nav aria-label="Primary">
-    <span class={["pill", @paused && "off"]}>{if @paused, do: "Paused", else: "Open"}</span>
+    <span class={["pill", @paused && "off"]}>
+      <span class="pt">{if @paused, do: "Paused", else: "Open"}</span>
+    </span>
     <a class="navlink" href={~p"/orders"}>Orders</a>
   </nav>
 </header>

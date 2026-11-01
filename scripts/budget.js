@@ -9,11 +9,11 @@ const KB = 1024;
 
 // per-asset and per-page budgets in bytes (brotli)
 const BUDGET = {
-  menu: { html: 3 * KB, total: 8 * KB },
+  menu: { html: 3 * KB, total: 9 * KB },
   cart: { html: 3 * KB, total: 11 * KB },
   order: { html: 5 * KB, total: 45 * KB },
-  staff_login: { html: 2 * KB, total: 8 * KB },
-  assets: { css: 3 * KB, "staff.css": 2 * KB, "app.js": 2 * KB, "cart.js": 2 * KB, "live.js": 35 * KB },
+  staff_login: { html: 2 * KB, total: 9 * KB },
+  assets: { logo: 3.5 * KB, css: 3 * KB, "staff.css": 2 * KB, "app.js": 2 * KB, "cart.js": 2 * KB, "live.js": 35 * KB },
 };
 
 let failed = false;
@@ -31,12 +31,17 @@ async function page(name, path, budget, headers) {
   const { r, body } = await get(path, headers);
   if (r.status !== 200) { failed = true; console.log(`FAIL ${name}: HTTP ${r.status}`); return; }
   const html = body.toString();
-  const assets = [...new Set(html.match(/\/assets\/[^"'\s>]+/g) || [])];
+  const assets = [...new Set(html.match(/\/(?:assets\/|logo)[^"'\s>]*/g) || [])];
+  // every linked resource (icons, manifest, scripts, images) must actually resolve
+  for (const m of html.matchAll(/<(?:link|script|img)\b[^>]*?(?:href|src)="(\/[^"]+)"/g)) {
+    const r = await fetch(base + m[1], { redirect: "manual" });
+    if (r.status !== 200) { failed = true; console.log(`FAIL ${name}: ${m[1]} -> HTTP ${r.status}`); }
+  }
   let total = br(body);
   row(`${name} html`, total, budget.html);
   for (const a of assets) {
     const { body: ab } = await get(a); const size = br(ab); total += size;
-    const kind = a.includes("/staff-") ? "staff.css" : a.includes(".css") ? "css" : a.match(/\/(app|cart|live)-/) ? a.match(/\/(app|cart|live)-/)[1] + ".js" : "other";
+    const kind = a.includes("logo.svg") ? "logo" : a.includes("/staff-") ? "staff.css" : a.includes(".css") ? "css" : a.match(/\/(app|cart|live)-/) ? a.match(/\/(app|cart|live)-/)[1] + ".js" : "other";
     row(`${name} ${kind}`, size, BUDGET.assets[kind] ?? 4 * KB);
   }
   row(`${name} TOTAL first visit`, total, budget.total);
