@@ -29,6 +29,14 @@ Dev uses a fake M-Pesa that approves every prompt after 4 s, through the real ca
 ./scripts/release_smoke.sh       # real `mix release` booted against a brand-new database
 ```
 
+## Future features
+Bookings (`/book`) ship as requests that staff confirm by phone or WhatsApp. Next:
+- **Deposit and minimum spend online.** Take a deposit by M-Pesa when a booking is agreed, and show a minimum spend once the owner sets one. Today no figures are stated and any deposit goes through the existing M-Pesa routine.
+- **Real VIP offering.** Replace the placeholder perks and options (`BookingHTML.vip_perks/0`, `Booking.vip_options/0`) with what the venue actually offers.
+- **Stronger spam protection.** Today: a hidden field, a 10-minute duplicate return and a 5-per-hour cap per phone. Add a captcha or similar only if abuse appears.
+- **Customer notifications.** Email or SMS when a request is received and when it is confirmed (needs a provider). Staff-side alerts beyond the live count on `/staff/bookings`.
+- **Table availability.** Check requests against capacity once tables and limits are known.
+
 ## Docs
 - `docs/STUDY.md` the incumbent site, reverse-engineered
 - `docs/BRIEF.md`, `docs/PHASES.md` the brief and the phase gates
