@@ -13,14 +13,6 @@ defmodule TheGameWeb.StaffTest do
     u
   end
 
-  defp eat_hm(order),
-    do:
-      order
-      |> then(&Orders.get_order!(&1.id))
-      |> Orders.paid_time()
-      |> DateTime.add(3 * 3600)
-      |> Calendar.strftime("%H:%M")
-
   defp last4(order), do: Orders.receipt_end(Orders.get_order!(order.id))
 
   defp as_staff(conn, u), do: init_test_session(conn, %{"staff_id" => u.id})
@@ -166,10 +158,10 @@ defmodule TheGameWeb.StaffTest do
       assert html =~ "Delivered"
     end
 
-    test "waiter claims with her name and the last 4 of the M-Pesa code; first wins; delivered closes it",
+    test "waiter writes the code and time from the client's phone; first wins; delivered closes it",
          %{conn: conn, gin: gin} do
       o = paid_order([{gin, 1}])
-      code = last4(o)
+      actual = last4(o)
       {:ok, view, _} = live(conn, "/staff")
       {:ok, other, _} = live(conn, "/staff")
 
@@ -177,39 +169,50 @@ defmodule TheGameWeb.StaffTest do
         v |> form("#o-#{o.id} form.claimform", %{"last4" => c, "time" => t}) |> render_submit()
       end
 
-      # no name yet: asked to type one, nothing changes
-      assert claim.(view, code, eat_hm(o)) =~ "Type your name"
-      assert Orders.get_order!(o.id).claimed_by_name == nil
+      # the card already shows the order's actual last 4 for the counter to match against
+      assert render(view) =~ ~s(<b class="mono">#{actual}</b>)
 
+      # missing pieces are asked for, and nothing is claimed
+      assert claim.(view, actual, "16:52") =~ "Type your name"
       render_hook(view, "set_waiter", %{"waiter" => "Amina"})
-      # a wrong or missing code is refused
-      html_bad = claim.(view, "ZZZZ", eat_hm(o))
-      assert html_bad =~ "don’t match this payment"
-      # what she typed is kept, so one wrong character never means retyping everything
-      assert html_bad =~ ~s(value="ZZZZ")
-      assert html_bad =~ ~s(value="#{eat_hm(o)}")
-      assert claim.(view, code, "03:00") =~ "time doesn’t match"
-      assert claim.(view, "", eat_hm(o)) =~ "last 4 characters"
-      assert claim.(view, code, "") =~ "Type the time paid"
+      html = claim.(view, "", "16:52")
+      assert html =~ "last 4 characters"
+      assert html =~ ~s(value="16:52")
+      assert claim.(view, actual, "") =~ "Type the time paid"
       assert Orders.get_order!(o.id).claimed_by_name == nil
 
-      html = claim.(view, String.downcase(code), eat_hm(o))
+      html = claim.(view, String.downcase(actual), "4:52 PM")
       assert html =~ "You have this"
-      assert html =~ "Slip"
-      assert html =~ "#{o.pickup_code}<i>·</i>#{code}"
-      assert Orders.get_order!(o.id).claimed_by_name == "Amina"
+      assert html =~ "Amina wrote"
+      assert html =~ "#{actual}<i>·</i>4:52 PM"
+      assert html =~ "code matches"
+      assert Orders.get_order!(o.id).recorded_time == "4:52 PM"
 
       # a second waiter sees who has it, and cannot take it
       assert render(other) =~ "Amina has this"
       render_hook(other, "set_waiter", %{"waiter" => "Brian"})
 
-      assert render_hook(other, "claim", %{"oid" => o.id, "last4" => code, "time" => eat_hm(o)}) =~
+      assert render_hook(other, "claim", %{"oid" => o.id, "last4" => actual, "time" => "10:00"}) =~
                "Amina already has that order"
-
-      assert Orders.get_order!(o.id).claimed_by_name == "Amina"
 
       view |> element(~s(#o-#{o.id} button), "Delivered") |> render_click()
       assert Orders.get_order!(o.id).status == :completed
+    end
+
+    test "a code that differs from the order's is recorded and flagged for the counter, not refused",
+         %{conn: conn, gin: gin} do
+      o = paid_order([{gin, 1}])
+      {:ok, view, _} = live(conn, "/staff")
+      render_hook(view, "set_waiter", %{"waiter" => "Amina"})
+
+      html =
+        view
+        |> form("#o-#{o.id} form.claimform", %{"last4" => "ZZZZ", "time" => "16:52"})
+        |> render_submit()
+
+      assert html =~ "Amina wrote"
+      assert html =~ "code differs"
+      assert Orders.get_order!(o.id).recorded_code == "ZZZZ"
     end
 
     test "give back lets another waiter take it", %{conn: conn, gin: gin} do
@@ -218,22 +221,17 @@ defmodule TheGameWeb.StaffTest do
       render_hook(view, "set_waiter", %{"waiter" => "Amina"})
 
       view
-      |> form("#o-#{o.id} form.claimform", %{"last4" => last4(o), "time" => eat_hm(o)})
+      |> form("#o-#{o.id} form.claimform", %{"last4" => last4(o), "time" => "16:52"})
       |> render_submit()
 
       view |> element(~s(#o-#{o.id} button), "Give back") |> render_click()
       assert Orders.get_order!(o.id).claimed_by_name == nil
     end
 
-    test "before a claim the card shows amount and time but never the M-Pesa code; lookup by ending works",
-         %{
-           conn: conn,
-           gin: gin
-         } do
+    test "lookup by the ending of the M-Pesa code finds the order", %{conn: conn, gin: gin} do
       o = paid_order([{gin, 2}])
       receipt = Orders.get_order!(o.id).mpesa_receipt
       {:ok, view, html} = live(conn, "/staff")
-      refute html =~ receipt
       assert html =~ "KES 2,000"
 
       ending = String.slice(receipt, -5, 5)

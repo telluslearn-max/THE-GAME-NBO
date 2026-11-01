@@ -53,7 +53,7 @@ defmodule TheGameWeb.Staff.BoardLive do
   end
 
   def handle_event("claim", %{"oid" => id, "last4" => last4, "time" => time}, socket) do
-    # keep what she typed so one wrong character never means retyping everything
+    # keep what she typed if something is missing, so she never retypes everything
     socket = assign(socket, draft: Map.put(socket.assigns.draft, id, %{last4: last4, time: time}))
 
     case Orders.claim(id, socket.assigns.waiter, last4, time) do
@@ -78,27 +78,7 @@ defmodule TheGameWeb.Staff.BoardLive do
 
       {:error, :time_required} ->
         {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Type the time paid, as the client’s M-Pesa message shows it (for example 16:52)."
-         )}
-
-      {:error, :code_mismatch} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Those 4 characters don’t match this payment. Check the M-Pesa code on the client’s phone."
-         )}
-
-      {:error, :time_mismatch} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "That time doesn’t match when this order was paid. Check the time on the client’s M-Pesa message."
-         )}
+         put_flash(socket, :error, "Type the time paid from the client’s M-Pesa message.")}
 
       {:error, {:claimed, who}} ->
         {:noreply,
@@ -169,16 +149,16 @@ defmodule TheGameWeb.Staff.BoardLive do
       <ul class="slines">
         <li :for={i <- @o.items}><b>{i.qty}×</b> {i.name}</li>
       </ul>
-      <p :if={@o.paid_at && is_nil(@o.claimed_by_name)} class="spay">
-        Paid {eat(Orders.paid_time(@o))} · {TheGame.Catalog.money(@o.total_cents)}
+      <p :if={@o.paid_at} class="spay">
+        Paid <b class="mono">{eat(Orders.paid_time(@o))}</b>
+        · {TheGame.Catalog.money(@o.total_cents)} · M-Pesa …<b class="mono">{Orders.receipt_end(@o)}</b>
       </p>
-      <div :if={@o.claimed_by_name && @o.mpesa_receipt} class="slip">
-        <span class="slip-k">Slip</span>
-        <span class="slip-code">{@o.pickup_code}<i>·</i>{Orders.receipt_end(@o)}</span>
-        <span class="slip-l">
-          {eat(@o.paid_at)} · {TheGame.Catalog.money(@o.total_cents)} · {@o.claimed_by_name}
-        </span>
-      </div>
+      <p :if={@o.claimed_by_name && @o.recorded_code} class="slip">
+        <span class="slip-k">{@o.claimed_by_name} wrote</span>
+        <span class="slip-code">{@o.recorded_code}<i>·</i>{@o.recorded_time}</span>
+        <span :if={Orders.code_matches?(@o)} class="slip-ok">✓ code matches</span>
+        <span :if={!Orders.code_matches?(@o)} class="slip-no">code differs from the order’s</span>
+      </p>
       <p :if={@o.status == :completed} class="spay">
         Delivered{@o.claimed_by_name && " by " <> @o.claimed_by_name}
       </p>

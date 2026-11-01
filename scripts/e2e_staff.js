@@ -48,23 +48,15 @@ const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process
   await s.fill("#waiter", "Amina");
   // the waiter reads the M-Pesa code from the client's phone and types its last 4 characters
   const receipt = (await c.textContent("text=M-Pesa receipt")).match(/receipt\s+([A-Z0-9]+)/)[1];
-  ok(!(await s.textContent("body")).includes(receipt), "staff screen does not show the M-Pesa code before the claim");
   await card.screenshot({ path: "/tmp/shots/waiter-card-before.png" });
   const paidAt = (await c.textContent("text=M-Pesa receipt")).match(/paid\s+(\d\d:\d\d)/)[1];
-  await card.locator("input.time").fill(paidAt);
-  await card.locator("input.last4").fill("ZZZZ");
-  await card.getByRole("button", { name: "I’ve got this one" }).click();
-  await s.waitForSelector("text=don’t match this payment");
-  ok(true, "a wrong M-Pesa ending is refused");
-  await card.locator("input.time").fill("03:00");
+  // the card shows the order's actual last 4 for the counter to match against
+  ok((await card.textContent()).includes(receipt.slice(-4)), "counter can see the order's actual last 4");
   await card.locator("input.last4").fill(receipt.slice(-4));
-  await card.getByRole("button", { name: "I’ve got this one" }).click();
-  await s.waitForSelector("text=time doesn’t match");
-  ok(true, "a wrong payment time is refused");
   await card.locator("input.time").fill(paidAt);
   await card.getByRole("button", { name: "I’ve got this one" }).click();
   await s.waitForSelector(`article:has(.scode:text("${code}")) >> text=You have this`);
-  ok((await s.textContent(`article:has(.scode:text("${code}")) .slip-code`)).includes(receipt.slice(-4)), "waiter's slip shows the code + last 4");
+  ok((await s.textContent(`article:has(.scode:text("${code}")) .slip`)).includes("code matches"), "waiter's note matches the order's code");
   ok(true, "waiter claimed the order");
   await card.screenshot({ path: "/tmp/shots/waiter-card-after.png" });
   await c.waitForSelector("text=You’ll be served by");

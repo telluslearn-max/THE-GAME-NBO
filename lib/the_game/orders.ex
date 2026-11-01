@@ -72,32 +72,28 @@ defmodule TheGame.Orders do
   @serving [:paid, :preparing, :ready]
 
   @doc """
-  A waiter takes an order. She reads the client's M-Pesa SMS and types her name, the last 4
-  characters of the M-Pesa code and the time it was paid. Both must match the payment
-  Safaricom reported (the time within #{3} minutes, either 24h "16:52" or "4:52 PM"), so a faked or
-  old SMS cannot be claimed. First waiter to tap wins; the same name again is a no-op; anyone
-  else is told who has it.
-
-  Her slip then shows the *actual* last 4 and payment time from the system.
+  A waiter takes an order. She writes down what she saw on the client's phone: the last 4
+  characters of the M-Pesa code and the time paid. The app just records it (nothing is
+  checked or refused); the counter matches her note against the order's actual code.
+  First waiter to tap wins; the same name again updates her note; anyone else is told who has it.
   """
-  def claim(order_id, name, last4, time)
-      when is_binary(name) and is_binary(last4) and is_binary(time) do
+  def claim(order_id, name, code, time)
+      when is_binary(name) and is_binary(code) and is_binary(time) do
     name = name |> String.trim() |> String.slice(0, 30)
-    typed = last4 |> String.replace(~r/\s+/, "") |> String.upcase()
+    code = code |> String.replace(~r/\s+/, "") |> String.upcase() |> String.slice(0, 4)
+    time = time |> String.trim() |> String.slice(0, 8)
 
     cond do
       name == "" ->
         {:error, :name_required}
 
-      String.length(typed) != 4 ->
+      String.length(code) != 4 ->
         {:error, :code_required}
 
-      parse_clock(time) == :error ->
+      time == "" ->
         {:error, :time_required}
 
       true ->
-        {:ok, minutes} = parse_clock(time)
-
         Repo.transaction(fn ->
           case lock(order_id) do
             nil ->
@@ -110,14 +106,18 @@ defmodule TheGame.Orders do
               if String.downcase(held) != String.downcase(name),
                 do: Repo.rollback({:claimed, held})
 
-              check_proof!(o, typed, minutes)
               o
+              |> Ecto.Changeset.change(recorded_code: code, recorded_time: time)
+              |> Repo.update!()
 
             %Order{} = o ->
-              check_proof!(o, typed, minutes)
-
               o
-              |> Ecto.Changeset.change(claimed_by_name: name, claimed_at: now())
+              |> Ecto.Changeset.change(
+                claimed_by_name: name,
+                claimed_at: now(),
+                recorded_code: code,
+                recorded_time: time
+              )
               |> Repo.update!()
           end
         end)
@@ -125,53 +125,19 @@ defmodule TheGame.Orders do
     end
   end
 
-  @clock_tolerance_min 3
-
-  defp check_proof!(%Order{mpesa_receipt: receipt} = o, typed, minutes) do
-    unless is_binary(receipt) and String.ends_with?(String.upcase(receipt), typed),
-      do: Repo.rollback(:code_mismatch)
-
-    actual = o |> paid_time() |> eat_minutes()
-    diff = abs(actual - minutes)
-    unless min(diff, 1440 - diff) <= @clock_tolerance_min, do: Repo.rollback(:time_mismatch)
-  end
-
   @doc "When the client actually paid: Safaricom's time when we have it, else when we recorded it."
   def paid_time(%Order{mpesa_paid_at: %DateTime{} = t}), do: t
   def paid_time(%Order{paid_at: %DateTime{} = t}), do: t
   def paid_time(_), do: nil
 
-  defp eat_minutes(%DateTime{} = t) do
-    eat = DateTime.add(t, 3 * 3600)
-    eat.hour * 60 + eat.minute
-  end
-
-  @doc "Parse what a waiter reads off an SMS: \"16:52\", \"1652\", \"4:52 PM\", \"4.52pm\" -> {:ok, minutes}."
-  def parse_clock(str) when is_binary(str) do
-    case Regex.run(~r/^\s*(\d{1,2})\s*[:.]?\s*(\d{2})\s*([ap]m)?\s*$/i, str) do
-      [_, h, m | rest] ->
-        h = String.to_integer(h)
-        m = String.to_integer(m)
-
-        h =
-          case rest |> List.first() |> to_string() |> String.downcase() do
-            "pm" when h in 1..11 -> h + 12
-            "am" when h == 12 -> 0
-            _ -> h
-          end
-
-        if h in 0..23 and m in 0..59, do: {:ok, h * 60 + m}, else: :error
-
-      _ ->
-        :error
-    end
-  end
-
-  @doc "The last 4 characters of the M-Pesa code (what the waiter types and her slip shows)."
+  @doc "The last 4 characters of the M-Pesa code, as the counter sees it on the order."
   def receipt_end(%{mpesa_receipt: r}) when is_binary(r),
     do: r |> String.upcase() |> String.slice(-4, 4)
 
   def receipt_end(_), do: nil
+
+  @doc "Does the waiter's recorded code equal the order's actual last 4? (a helpful tick, never a gate)"
+  def code_matches?(%Order{recorded_code: rc} = o), do: is_binary(rc) and rc == receipt_end(o)
 
   @doc "Give an order back (the waiter can't serve it after all)."
   def release(order_id) do

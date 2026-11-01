@@ -145,101 +145,54 @@ defmodule TheGame.OrdersTest do
     setup %{coke: coke} do
       {:ok, o} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
       {:ok, o} = Orders.mark_paid(o.id, "RKL1A2B3C9")
-      {:ok, order: o, now: eat_clock(Orders.paid_time(o))}
+      {:ok, order: o}
     end
 
-    defp now_hm, do: eat_clock(DateTime.utc_now())
-
-    defp eat_clock(%DateTime{} = t), do: t |> DateTime.add(3 * 3600) |> Calendar.strftime("%H:%M")
-
-    test "first claim wins, same name is a no-op, another name is told who has it", %{
-      order: o,
-      now: now
-    } do
-      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "  Amina ", "b3c9", now_hm())
-      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "amina", "B3C9", now_hm())
-      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian", "B3C9", now_hm())
-      assert {:error, :name_required} = Orders.claim(o.id, "   ", "B3C9", now_hm())
-    end
-
-    test "the typed last 4 must match the real M-Pesa code, and nothing is claimed otherwise", %{
+    test "a claim records the waiter's name and what she wrote; nothing is checked or refused", %{
       order: o
     } do
-      assert Orders.receipt_end(o) == "B3C9"
-      assert {:error, :code_mismatch} = Orders.claim(o.id, "Amina", "ZZZZ", now_hm())
-      assert {:error, :code_mismatch} = Orders.claim(o.id, "Amina", "A2B3", now_hm())
-      assert {:error, :code_required} = Orders.claim(o.id, "Amina", "B3C", now_hm())
-      assert {:error, :code_required} = Orders.claim(o.id, "Amina", "", now_hm())
+      assert {:ok, c} = Orders.claim(o.id, "  Amina ", "b3c9", " 16:52 ")
+      assert c.claimed_by_name == "Amina"
+      assert c.recorded_code == "B3C9"
+      assert c.recorded_time == "16:52"
+      assert Orders.code_matches?(c)
+
+      # a different code is simply recorded; the counter sees it differs
+      {:ok, _} = Orders.release(o.id)
+      assert {:ok, d} = Orders.claim(o.id, "Amina", "ZZZZ", "4:52 PM")
+      assert d.recorded_code == "ZZZZ"
+      refute Orders.code_matches?(d)
+    end
+
+    test "name, a 4-character code and a time are all needed", %{order: o} do
+      assert {:error, :name_required} = Orders.claim(o.id, "   ", "B3C9", "16:52")
+      assert {:error, :code_required} = Orders.claim(o.id, "Amina", "B3C", "16:52")
+      assert {:error, :code_required} = Orders.claim(o.id, "Amina", "", "16:52")
+      assert {:error, :time_required} = Orders.claim(o.id, "Amina", "B3C9", "  ")
       assert Orders.get_order!(o.id).claimed_by_name == nil
-      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "Amina", " b3 c9 ", now_hm())
     end
 
-    test "the typed time must match the payment time (within 3 minutes), in 24h or AM/PM", %{
-      order: o
-    } do
-      actual = Orders.paid_time(o)
-      shift = fn min -> eat_clock(DateTime.add(actual, min * 60)) end
+    test "first claim wins; the same name can correct her note; another name is told who has it",
+         %{order: o} do
+      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "Amina", "AAAA", "10:00")
 
-      assert {:error, :time_mismatch} = Orders.claim(o.id, "Amina", "B3C9", shift.(20))
-      assert {:error, :time_mismatch} = Orders.claim(o.id, "Amina", "B3C9", shift.(-10))
-      assert {:error, :time_required} = Orders.claim(o.id, "Amina", "B3C9", "")
-      assert {:error, :time_required} = Orders.claim(o.id, "Amina", "B3C9", "noon")
-      assert Orders.get_order!(o.id).claimed_by_name == nil
+      assert {:ok, %{claimed_by_name: "Amina", recorded_code: "B3C9"}} =
+               Orders.claim(o.id, "amina", "B3C9", "10:01")
 
-      # one minute off (SMS time vs our clock) is fine
-      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "Amina", "B3C9", shift.(1))
-    end
-
-    test "Safaricom's own transaction time is the actual time, not when we recorded it", %{
-      coke: coke
-    } do
-      {:ok, o} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
-      sf_time = DateTime.add(DateTime.utc_now(), -2 * 3600) |> DateTime.truncate(:second)
-
-      {:ok, _} =
-        Orders.transition(o.id, :paid, %{mpesa_receipt: "ABCD1234WX", mpesa_paid_at: sf_time})
-
-      o = Orders.get_order!(o.id)
-      assert Orders.paid_time(o) == sf_time
-
-      assert {:error, :time_mismatch} = Orders.claim(o.id, "Amina", "34WX", eat_clock(o.paid_at))
-      assert {:ok, _} = Orders.claim(o.id, "Amina", "34WX", eat_clock(sf_time))
-    end
-
-    test "parse_clock reads what an SMS shows" do
-      assert Orders.parse_clock("16:52") == {:ok, 16 * 60 + 52}
-      assert Orders.parse_clock("1652") == {:ok, 16 * 60 + 52}
-      assert Orders.parse_clock("4:52 PM") == {:ok, 16 * 60 + 52}
-      assert Orders.parse_clock("4.52pm") == {:ok, 16 * 60 + 52}
-      assert Orders.parse_clock("12:05 AM") == {:ok, 5}
-      assert Orders.parse_clock("12:05 PM") == {:ok, 12 * 60 + 5}
-      assert Orders.parse_clock("9:07") == {:ok, 9 * 60 + 7}
-
-      for bad <- ["", "25:00", "12:61", "ab:cd", "4 PM", "16:5"],
-          do: assert(Orders.parse_clock(bad) == :error, bad)
-    end
-
-    test "a second waiter with a wrong code is told who has it, not about the code", %{
-      order: o,
-      now: now
-    } do
-      {:ok, _} = Orders.claim(o.id, "Amina", "B3C9", now_hm())
-      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian", "0000", now_hm())
+      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian", "B3C9", "10:01")
+      assert Orders.get_order!(o.id).recorded_code == "B3C9"
     end
 
     test "release hands it back; only open orders can be claimed", %{order: o} do
-      {:ok, _} = Orders.claim(o.id, "Amina", "B3C9", now_hm())
+      {:ok, _} = Orders.claim(o.id, "Amina", "B3C9", "16:52")
       assert {:ok, %{claimed_by_name: nil}} = Orders.release(o.id)
-      assert {:ok, %{claimed_by_name: "Brian"}} = Orders.claim(o.id, "Brian", "B3C9", now_hm())
+      assert {:ok, %{claimed_by_name: "Brian"}} = Orders.claim(o.id, "Brian", "B3C9", "16:52")
       {:ok, _} = Orders.deliver(o.id)
-      assert {:error, {:not_open, :completed}} = Orders.claim(o.id, "Amina", "B3C9", now_hm())
-      assert {:error, :not_found} = Orders.claim(Ecto.UUID.generate(), "Amina", "B3C9", now_hm())
+      assert {:error, {:not_open, :completed}} = Orders.claim(o.id, "Amina", "B3C9", "16:52")
+      assert {:error, :not_found} = Orders.claim(Ecto.UUID.generate(), "Amina", "B3C9", "16:52")
     end
 
-    test "deliver works from paid (the bar may not use the app) and from ready, once", %{
-      order: o,
-      now: now
-    } do
+    test "deliver works from paid (the bar may not use the app) and from ready, once", %{order: o} do
       assert {:ok, %{status: :completed, completed_at: t}} = Orders.deliver(o.id)
       assert t
       assert {:error, {:illegal_transition, :completed, :completed}} = Orders.deliver(o.id)
@@ -250,7 +203,19 @@ defmodule TheGame.OrdersTest do
       assert {:error, {:illegal_transition, :pending_payment, :completed}} = Orders.deliver(u.id)
 
       assert {:error, {:not_open, :pending_payment}} =
-               Orders.claim(u.id, "Amina", "B3C9", now_hm())
+               Orders.claim(u.id, "Amina", "B3C9", "16:52")
+    end
+
+    test "Safaricom's own transaction time is the actual paid time when we have it", %{coke: coke} do
+      {:ok, o} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
+      sf_time = DateTime.add(DateTime.utc_now(), -2 * 3600) |> DateTime.truncate(:second)
+
+      {:ok, _} =
+        Orders.transition(o.id, :paid, %{mpesa_receipt: "ABCD1234WX", mpesa_paid_at: sf_time})
+
+      o = Orders.get_order!(o.id)
+      assert Orders.paid_time(o) == sf_time
+      assert Orders.receipt_end(o) == "34WX"
     end
 
     test "lookup by pickup code or the end of the M-Pesa code, case-insensitive, 4+ chars", %{
