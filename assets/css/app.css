@@ -243,3 +243,6 @@ select.text { padding-right: 8px; }
   .pname { grid-column: auto; }
   .pform { grid-template-columns: 2fr 1fr 1.2fr 1.4fr auto; }
 }
+
+/* Offline banner */
+.offline { position: fixed; left: 0; right: 0; top: 0; z-index: 60; padding: max(8px, env(safe-area-inset-top)) 16px 8px; background: var(--hot); color: #1a0a05; font: 700 13px/1.3 var(--sans); text-align: center; }

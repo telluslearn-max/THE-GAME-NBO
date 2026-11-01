@@ -21,6 +21,25 @@
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
   }
 
+  // Offline banner + service worker (after load, so it never competes with first paint).
+  var bannerEl;
+  function net() {
+    if (navigator.onLine === false) {
+      if (!bannerEl) {
+        bannerEl = document.createElement("div");
+        bannerEl.className = "offline"; bannerEl.setAttribute("role", "status");
+        bannerEl.textContent = "You’re offline. You can browse and build your cart. Paying needs a connection.";
+        document.body.appendChild(bannerEl);
+      }
+    } else if (bannerEl) { bannerEl.remove(); bannerEl = null; }
+  }
+  window.addEventListener("online", net); window.addEventListener("offline", net); net();
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      (window.requestIdleCallback || setTimeout)(function () { navigator.serviceWorker.register("/sw.js").catch(function () {}); });
+    });
+  }
+
   var rows = $$(".row[data-id]");
   if (!rows.length) return; // not the menu page
 

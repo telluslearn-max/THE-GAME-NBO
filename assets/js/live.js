@@ -18,7 +18,36 @@ function chime() {
   } catch (e) {}
 }
 
+const b64 = (s) => {
+  const p = "=".repeat((4 - (s.length % 4)) % 4), raw = atob((s + p).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+};
+
 const Hooks = {
+  // Opt in to a push notification for this order. Hidden unless the browser supports it.
+  PushOptIn: {
+    async mounted() {
+      if (!("serviceWorker" in navigator && "PushManager" in window && "Notification" in window)) return;
+      if (Notification.permission === "denied") return;
+      const btn = this.el.querySelector("[data-role=enable]"), on = this.el.querySelector("[data-role=on]");
+      this.el.hidden = false;
+      const reg = await navigator.serviceWorker.ready.catch(() => null);
+      if (!reg) { this.el.hidden = true; return; }
+      const done = () => { btn.hidden = true; on.hidden = false; };
+      const existing = await reg.pushManager.getSubscription();
+      if (existing && Notification.permission === "granted") { this.send(existing, done); }
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          if ((await Notification.requestPermission()) !== "granted") { btn.disabled = false; return; }
+          const sub = existing || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(this.el.dataset.key) }));
+          this.send(sub, done);
+        } catch (e) { btn.disabled = false; }
+      });
+    },
+    send(sub, done) { this.pushEvent("push-subscribe", sub.toJSON(), (r) => { if (r && r.ok) done(); }); },
+  },
+
   // Staff board: ring when the count of new (paid) orders goes up.
   QueueBell: {
     mounted() { this.n = +this.el.dataset.new; },

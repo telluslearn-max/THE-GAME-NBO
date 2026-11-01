@@ -13,13 +13,20 @@ defmodule TheGame.Application do
         TheGame.Repo,
         {DNSCluster, query: Application.get_env(:the_game, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: TheGame.PubSub},
-        TheGame.Staff.RateLimit
-      ] ++ gateway_children() ++ sweeper_children() ++ [TheGameWeb.Endpoint]
+        TheGame.Staff.RateLimit,
+        {Task.Supervisor, name: TheGame.TaskSupervisor}
+      ] ++ push_children() ++ gateway_children() ++ sweeper_children() ++ [TheGameWeb.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: TheGame.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp push_children do
+    if Application.get_env(:the_game, :push_sender) == TheGame.Push.Memory,
+      do: [TheGame.Push.Memory],
+      else: []
   end
 
   defp gateway_children do

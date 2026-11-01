@@ -69,6 +69,13 @@ defmodule TheGameWeb.OrderLive do
     {:noreply, socket |> assign(info: info, error: error) |> load(Orders.get_order!(id))}
   end
 
+  def handle_event("push-subscribe", sub, socket) do
+    case TheGame.Push.subscribe(socket.assigns.order.id, sub) do
+      {:ok, _} -> {:reply, %{ok: true}, socket}
+      {:error, _} -> {:reply, %{ok: false}, socket}
+    end
+  end
+
   def handle_event("ask_cancel", _, socket), do: {:noreply, assign(socket, confirm_cancel: true)}
   def handle_event("keep", _, socket), do: {:noreply, assign(socket, confirm_cancel: false)}
 
@@ -318,6 +325,21 @@ defmodule TheGameWeb.OrderLive do
           M-Pesa receipt <b class="mono">{@order.mpesa_receipt}</b> · paid {eat(@order.paid_at)} EAT
         </p>
       </section>
+
+      <div
+        :if={@order.status in [:paid, :preparing] and TheGame.Push.enabled?()}
+        id="push"
+        class="panel slim"
+        phx-hook="PushOptIn"
+        phx-update="ignore"
+        data-key={TheGame.Push.public_key()}
+        hidden
+      >
+        <button type="button" class="linkbtn" data-role="enable">Notify me when it’s ready</button>
+        <span class="help" data-role="on" hidden>
+          You’ll get a notification when your drinks are ready.
+        </span>
+      </div>
 
       <ul class="rows">
         <li :for={i <- @order.items} class="row">

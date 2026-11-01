@@ -13,6 +13,12 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <title>{assigns[:page_title] || "THE GAME"}</title>
     <link rel="icon" href={~p"/favicon.svg"} type="image/svg+xml" />
+    <link rel="manifest" href={~p"/manifest.webmanifest"} />
+    <link rel="apple-touch-icon" href={~p"/icons/apple-touch-icon.png"} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="THE GAME" />
     <link rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer src={~p"/assets/js/app.js"}>
     </script>

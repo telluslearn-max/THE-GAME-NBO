@@ -20,6 +20,16 @@ if System.get_env("PHX_SERVER") do
   config :the_game, TheGameWeb.Endpoint, server: true
 end
 
+# Web Push (optional). Generate keys once with `mix generate.vapid.keys` and set all three.
+if pub = System.get_env("WEBPUSH_VAPID_PUBLIC_KEY") do
+  config :the_game, vapid_public_key: pub
+
+  config :web_push_elixir,
+    vapid_public_key: pub,
+    vapid_private_key: System.fetch_env!("WEBPUSH_VAPID_PRIVATE_KEY"),
+    vapid_subject: System.get_env("WEBPUSH_VAPID_SUBJECT") || "mailto:admin@example.com"
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

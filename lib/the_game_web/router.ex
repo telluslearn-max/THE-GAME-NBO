@@ -27,6 +27,7 @@ defmodule TheGameWeb.Router do
     pipe_through :browser
 
     get "/", MenuController, :index
+    get "/offline", OfflineController, :show
     get "/cart", CartController, :show
     post "/orders", CartController, :create
     get "/orders", OrdersController, :index

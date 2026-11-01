@@ -22,7 +22,10 @@ defmodule TheGameWeb.Endpoint do
   plug Plug.Static,
     at: "/",
     from: :the_game,
-    gzip: false,
+    gzip: true,
+    # Un-fingerprinted files (sw.js, manifest, icons) must always revalidate; fingerprinted
+    # assets get Phoenix's immutable one-year cache automatically.
+    cache_control_for_etags: "public, max-age=0, must-revalidate",
     only: TheGameWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the

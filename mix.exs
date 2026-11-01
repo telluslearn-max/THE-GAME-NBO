@@ -47,6 +47,7 @@ defmodule TheGame.MixProject do
       {:jason, "~> 1.2"},
       {:req, "~> 0.5"},
       {:pbkdf2_elixir, "~> 2.2"},
+      {:web_push_elixir, "~> 0.4"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"}
     ]

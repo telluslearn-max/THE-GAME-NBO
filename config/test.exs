@@ -35,3 +35,5 @@ config :the_game,
   start_sweeper: false,
   stk_cooldown_seconds: 0,
   mpesa_callback_token: "test-token"
+
+config :the_game, push_sender: TheGame.Push.Memory, vapid_public_key: "test-public-key"

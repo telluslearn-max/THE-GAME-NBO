@@ -270,8 +270,12 @@ defmodule TheGame.Orders do
       end
     end)
     |> tap(fn
-      {:ok, order} -> notify(order)
-      _ -> :ok
+      {:ok, order} ->
+        notify(order)
+        if order.status == :ready, do: TheGame.Push.notify_ready(order)
+
+      _ ->
+        :ok
     end)
   end
 
