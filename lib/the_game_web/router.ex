@@ -31,6 +31,11 @@ defmodule TheGameWeb.Router do
     get "/cart", CartController, :show
     post "/orders", CartController, :create
     get "/orders", OrdersController, :index
+
+    get "/book", BookingController, :index
+    get "/book/thanks/:ref", BookingController, :thanks
+    get "/book/:kind", BookingController, :new
+    post "/book/:kind", BookingController, :create
   end
 
   scope "/", TheGameWeb do
@@ -54,6 +59,7 @@ defmodule TheGameWeb.Router do
     live_session :staff, on_mount: {TheGameWeb.StaffAuth, :ensure_staff} do
       live "/", Staff.BoardLive
       live "/reviews", Staff.ReviewsLive
+      live "/bookings", Staff.BookingsLive
       live "/menu", Staff.MenuLive
       live "/today", Staff.TodayLive
     end

@@ -191,3 +191,32 @@ a { color: inherit; }
 
 .served { margin: -6px 0 18px; padding: 12px 14px; border: 1px solid var(--signal); border-radius: var(--r); font-size: 16px; text-align: center; }
 .served b { color: var(--signal); font-size: 18px; }
+
+/* Booking */
+.p { margin: 0 0 12px; color: var(--dim); font-size: 15px; }
+.book { margin-bottom: 8px; }
+.bk { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 68px; padding: 12px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
+.bk b { display: block; font-size: 17px; }
+.bk small { display: block; margin-top: 2px; color: var(--dim); font-size: 13px; }
+.bk .go { color: var(--faint); font-size: 20px; }
+.bk:hover .go, .bk:focus-visible .go { color: var(--signal); }
+.vip { margin: 28px 0 8px; padding: 22px 18px; border: 1px solid var(--signal); border-radius: var(--r); background: var(--raise); }
+.vip h2 { margin: 2px 0 8px; font: 800 26px/1.05 var(--sans); letter-spacing: -.02em; }
+.kick { margin: 0; font: 700 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--signal); }
+.perks { list-style: none; margin: 14px 0 18px; padding: 0; display: grid; gap: 12px; }
+.perks li { display: grid; gap: 2px; padding-left: 12px; border-left: 2px solid var(--line-2); }
+.perks b { font-size: 15px; }
+.perks span { color: var(--dim); font-size: 14px; }
+.vip .help { margin-bottom: 0; }
+.bform { padding-bottom: 8px; }
+.bf { margin: 0 0 16px; }
+.bf label { display: block; margin: 0 0 6px; font-weight: 700; font-size: 14px; }
+.bf input, .bf select, .bf textarea { width: 100%; min-height: 50px; padding: 12px 14px; border-radius: var(--r); border: 1px solid var(--line-2); background: var(--raise); outline: none; font-size: 16px; -webkit-appearance: none; appearance: none; }
+.bf textarea { resize: vertical; line-height: 1.4; }
+.bf select { background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%); background-position: calc(100% - 20px) 22px, calc(100% - 15px) 22px; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
+.bf input:focus, .bf select:focus, .bf textarea:focus { border-color: var(--signal); }
+.bf [aria-invalid] { border-color: var(--hot); }
+.bf .help { margin: 6px 0 0; }
+.err { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--hot); }
+.bh { margin: 26px 0 12px; font: 800 13px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }

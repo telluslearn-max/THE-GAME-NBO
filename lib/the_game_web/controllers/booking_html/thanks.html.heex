@@ -1,0 +1,27 @@
+<header class="wrap top">
+  <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
+</header>
+
+<main id="main" class="wrap">
+  <p class="status">Request received</p>
+  <h1 class="h1">We’ll be in touch</h1>
+  <p class="lede">
+    <b>Not confirmed yet.</b>
+    We’ll call or message you on the number you gave to confirm{if @booking,
+      do: " your " <> kind_text(@booking.kind)}.
+  </p>
+
+  <div class="total">
+    <span>Your reference</span><output class="mono">{@ref}</output>
+  </div>
+
+  <a
+    :if={@whatsapp}
+    class="btn ghost"
+    href={"https://wa.me/" <> @whatsapp <> "?text=" <> URI.encode("Hi, my booking reference is " <> @ref)}
+    rel="noopener"
+  >
+    Message us on WhatsApp
+  </a>
+  <p><a class="back" href={~p"/"}>← Back to the menu</a></p>
+</main>

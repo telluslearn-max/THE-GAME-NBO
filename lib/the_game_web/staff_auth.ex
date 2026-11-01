@@ -25,10 +25,16 @@ defmodule TheGameWeb.StaffAuth do
     case session["staff_id"] && Staff.get_user(session["staff_id"]) do
       %{} = user ->
         TheGame.Catalog.subscribe()
+        if Phoenix.LiveView.connected?(socket), do: TheGame.Bookings.subscribe()
 
         socket =
           socket
-          |> Phoenix.Component.assign(staff: user, paused: TheGame.Settings.ordering_paused?())
+          |> Phoenix.Component.assign(
+            staff: user,
+            paused: TheGame.Settings.ordering_paused?(),
+            new_bookings: TheGame.Bookings.count_new()
+          )
+          |> Phoenix.LiveView.attach_hook(:staff_bookings, :handle_info, &booking_sync/2)
           |> Phoenix.LiveView.attach_hook(:staff_pause, :handle_event, &pause_event/3)
           |> Phoenix.LiveView.attach_hook(:staff_menu_sync, :handle_info, &menu_sync/2)
 
@@ -51,6 +57,12 @@ defmodule TheGameWeb.StaffAuth do
   end
 
   defp menu_sync(_, socket), do: {:cont, socket}
+
+  defp booking_sync({tag, _}, socket) when tag in [:booking, :booking_updated] do
+    {:cont, Phoenix.Component.assign(socket, new_bookings: TheGame.Bookings.count_new())}
+  end
+
+  defp booking_sync(_, socket), do: {:cont, socket}
 
   @doc "Throttle key for a request: the client address, honouring one trusted proxy hop if configured."
   def client_key(conn) do

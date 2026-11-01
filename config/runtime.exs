@@ -20,6 +20,12 @@ if System.get_env("PHX_SERVER") do
   config :the_game, TheGameWeb.Endpoint, server: true
 end
 
+# Booking requests: the venue's WhatsApp number in international form without "+", e.g. 254712345678.
+# Optional; without it the thank-you page simply doesn't offer a WhatsApp link.
+if wa = System.get_env("VENUE_WHATSAPP") do
+  config :the_game, venue_whatsapp: String.replace(wa, ~r/\D/, "")
+end
+
 # Web Push (optional). Generate keys once with `mix generate.vapid.keys` and set all three.
 if pub = System.get_env("WEBPUSH_VAPID_PUBLIC_KEY") do
   config :the_game, vapid_public_key: pub

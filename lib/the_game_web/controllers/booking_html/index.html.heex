@@ -1,0 +1,31 @@
+<header class="wrap top">
+  <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
+  <nav aria-label="Primary"><a class="navlink" href={~p"/"}>Menu</a></nav>
+</header>
+
+<main id="main" class="wrap">
+  <h1 class="h1">Book THE GAME</h1>
+  <p class="lede">
+    <b>Tell us what you’re planning.</b> We confirm every request by phone or WhatsApp.
+  </p>
+
+  <ul class="rows book">
+    <li :for={p <- TheGameWeb.BookingHTML.pages()}>
+      <a class="bk" href={~p"/book/#{p.slug}"}>
+        <span><b>{p.title}</b><small>{p.short}</small></span>
+        <span class="go" aria-hidden="true">→</span>
+      </a>
+    </li>
+  </ul>
+
+  <section id="vip" class="vip" aria-labelledby="vip-h">
+    <p class="kick">Top of the house</p>
+    <h2 id="vip-h">VIP experience</h2>
+    <p class="p">{TheGameWeb.BookingHTML.page(:vip).intro}</p>
+    <ul class="perks">
+      <li :for={{t, d} <- TheGameWeb.BookingHTML.vip_perks()}><b>{t}</b><span>{d}</span></li>
+    </ul>
+    <a class="btn" href={~p"/book/vip"}>Request VIP</a>
+    <p class="help">Specifics and any deposit are agreed on the confirmation call.</p>
+  </section>
+</main>

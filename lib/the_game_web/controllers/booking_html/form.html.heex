@@ -1,0 +1,160 @@
+<% p = page(@kind) %>
+<header class="wrap top">
+  <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
+  <nav aria-label="Primary"><a class="navlink" href={~p"/"}>Menu</a></nav>
+</header>
+
+<main id="main" class="wrap">
+  <a class="back" href={~p"/book"}>← Book</a>
+  <h1 class="h1">{p.title}</h1>
+  <p class="lede">{p.intro}</p>
+
+  <p :if={@notice} class="notice" role="alert">{@notice}</p>
+  <p :if={@errors != %{}} class="notice" role="alert">
+    Check the highlighted fields and send again.
+  </p>
+
+  <form method="post" action={~p"/book/#{p.slug}"} novalidate class="bform">
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+
+    <div class="hp" aria-hidden="true">
+      <label for="b-website">Website</label>
+      <input id="b-website" name="booking[website]" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <.pick
+      :if={@kind == :collab}
+      name="collab_type"
+      label="You are"
+      v={@v}
+      errors={@errors}
+      blank="Choose one"
+      required
+      options={options(TheGame.Bookings.Booking.collab_types(), &collab_label/1)}
+    />
+    <.field
+      :if={@kind == :collab}
+      name="org"
+      label="Brand or handle"
+      v={@v}
+      errors={@errors}
+      required
+      maxlength="100"
+    />
+
+    <.pick
+      :if={@kind == :event}
+      name="event_type"
+      label="What are we celebrating?"
+      v={@v}
+      errors={@errors}
+      blank="Choose one"
+      required
+      options={options(TheGame.Bookings.Booking.event_types(), &event_type_label/1)}
+    />
+    <.pick
+      :if={@kind == :vip}
+      name="vip_option"
+      label="What would you like?"
+      v={@v}
+      errors={@errors}
+      blank="Choose one"
+      required
+      options={options(TheGame.Bookings.Booking.vip_options(), &vip_label/1)}
+    />
+
+    <.field
+      :if={@kind != :collab}
+      name="party_size"
+      label={if @kind == :event, do: "Roughly how many guests?", else: "How many guests?"}
+      type="number"
+      inputmode="numeric"
+      min={if @kind == :group, do: "10", else: "1"}
+      max={if @kind == :table, do: "9", else: nil}
+      v={@v}
+      errors={@errors}
+      required
+    />
+    <.field
+      :if={@kind != :collab}
+      name="on_date"
+      label="Date"
+      type="date"
+      min={@today}
+      v={@v}
+      errors={@errors}
+      required
+    />
+    <.field
+      :if={@kind in [:table, :group, :vip, :event]}
+      name="at_time"
+      label="Arrival time"
+      type="time"
+      v={@v}
+      errors={@errors}
+      required={@kind in [:table, :group]}
+    />
+
+    <.pick
+      :if={@kind in [:table, :group]}
+      name="seating"
+      label="Seating"
+      v={@v}
+      errors={@errors}
+      options={options(TheGame.Bookings.Booking.seatings(), &seating_label/1)}
+    />
+    <.field
+      :if={@kind in [:group, :event, :collab]}
+      name="budget"
+      label="Budget (optional)"
+      v={@v}
+      errors={@errors}
+      maxlength="60"
+      placeholder="e.g. KES 150,000"
+    />
+
+    <.area
+      name="message"
+      label={if @kind == :collab, do: "Your idea", else: "Anything we should know? (optional)"}
+      v={@v}
+      errors={@errors}
+      help={
+        if @kind == :collab, do: "What you’d like to do, who it reaches, and when.", else: nil
+      }
+    />
+
+    <h2 class="bh">Who to call</h2>
+    <.field
+      name="name"
+      label="Your name"
+      v={@v}
+      errors={@errors}
+      required
+      autocomplete="name"
+      maxlength="80"
+    />
+    <.field
+      name="phone"
+      label="Phone or WhatsApp"
+      type="tel"
+      inputmode="tel"
+      autocomplete="tel-national"
+      placeholder="0712 345 678"
+      v={@v}
+      errors={@errors}
+      required
+    />
+    <.field
+      name="email"
+      label={if @kind == :collab, do: "Email", else: "Email (optional)"}
+      type="email"
+      autocomplete="email"
+      v={@v}
+      errors={@errors}
+      required={@kind == :collab}
+    />
+
+    <button class="btn gap" type="submit">{p.cta}</button>
+    <p class="help">This is a request, not a booking. It’s confirmed when we reply.</p>
+  </form>
+</main>

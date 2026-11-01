@@ -25,7 +25,7 @@ defmodule TheGameWeb.StaffTest do
 
   describe "authentication" do
     test "everything under /staff needs a login", %{conn: conn} do
-      for path <- ["/staff", "/staff/reviews", "/staff/menu", "/staff/today"] do
+      for path <- ["/staff", "/staff/reviews", "/staff/bookings", "/staff/menu", "/staff/today"] do
         assert redirected_to(get(conn, path)) == "/staff/login"
       end
     end
@@ -354,6 +354,56 @@ defmodule TheGameWeb.StaffTest do
       assert html =~ "KES 3,000"
       assert html =~ "Gin"
       assert html =~ ">3<"
+    end
+  end
+
+  describe "bookings" do
+    test "new requests show up, can be confirmed, and the nav shows the count", %{conn: conn} do
+      {:ok, b} =
+        TheGame.Bookings.create(:group, %{
+          "name" => "Zawadi",
+          "phone" => "0711000111",
+          "party_size" => "14",
+          "on_date" => Date.to_iso8601(Date.add(TheGame.Bookings.today(), 5)),
+          "at_time" => "21:00",
+          "message" => "Her 30th"
+        })
+
+      {:ok, view, html} = conn |> as_staff(staff!()) |> live("/staff/bookings")
+      assert html =~ "Zawadi"
+      assert html =~ "Her 30th"
+      assert html =~ "wa.me/254711000111"
+      assert html =~ "tel:+254711000111"
+
+      html = view |> element("#b-#{b.id} button", "Confirm") |> render_click()
+      assert html =~ "confirmed"
+      assert TheGame.Bookings.count_new() == 0
+
+      # a request made while the page is open appears live
+      {:ok, _} =
+        TheGame.Bookings.create(:vip, %{
+          "name" => "Otieno",
+          "phone" => "0722000222",
+          "party_size" => "6",
+          "vip_option" => "bottle_service",
+          "on_date" => Date.to_iso8601(Date.add(TheGame.Bookings.today(), 2))
+        })
+
+      assert render(view) =~ "Otieno"
+    end
+
+    test "the board's nav carries the count of new requests", %{conn: conn} do
+      {:ok, _} =
+        TheGame.Bookings.create(:table, %{
+          "name" => "Wanjiru",
+          "phone" => "0733000333",
+          "party_size" => "2",
+          "on_date" => Date.to_iso8601(Date.add(TheGame.Bookings.today(), 1)),
+          "at_time" => "19:00"
+        })
+
+      {:ok, _view, html} = conn |> as_staff(staff!()) |> live("/staff")
+      assert html =~ ~r/Bookings\s*<span class="count">1<\/span>/
     end
   end
 end

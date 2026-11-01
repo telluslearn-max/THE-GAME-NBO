@@ -11,6 +11,7 @@ defmodule TheGameWeb.StaffComponents do
   attr :active, :atom, required: true
   attr :paused, :boolean, required: true
   attr :reviews, :integer, default: 0
+  attr :bookings, :integer, default: 0
 
   def header(assigns) do
     ~H"""
@@ -34,6 +35,9 @@ defmodule TheGameWeb.StaffComponents do
         <a href={~p"/staff"} aria-current={@active == :board && "page"}>Board</a>
         <a href={~p"/staff/reviews"} aria-current={@active == :reviews && "page"}>
           Payments <span :if={@reviews > 0} class="count">{@reviews}</span>
+        </a>
+        <a href={~p"/staff/bookings"} aria-current={@active == :bookings && "page"}>
+          Bookings <span :if={@bookings > 0} class="count">{@bookings}</span>
         </a>
         <a href={~p"/staff/menu"} aria-current={@active == :menu && "page"}>Menu</a>
         <a href={~p"/staff/today"} aria-current={@active == :today && "page"}>Today</a>

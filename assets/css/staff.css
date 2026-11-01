@@ -83,3 +83,11 @@ select.text { padding-right: 8px; }
 .slip-code { font: 800 26px/1 var(--mono); letter-spacing: .06em; }
 .slip-code i { font-style: normal; color: var(--signal); padding: 0 .12em; }
 .slip-l { font: 500 13px/1.3 var(--mono); color: var(--dim); }
+
+/* Bookings */
+.bmeta { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.btag { font: 700 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 6px 8px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--dim); }
+.btag.new { border-color: var(--hot); color: var(--hot); }
+.btag.confirmed { border-color: var(--signal); color: var(--signal); }
+.bmsg { margin: 8px 0 0; padding: 10px 12px; border-left: 2px solid var(--line-2); color: var(--dim); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scard-h .bname { font-weight: 800; font-size: 18px; overflow-wrap: anywhere; }

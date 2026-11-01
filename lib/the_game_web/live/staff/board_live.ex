@@ -212,7 +212,7 @@ defmodule TheGameWeb.Staff.BoardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header active={:board} paused={@paused} reviews={@reviews} />
+    <.header active={:board} paused={@paused} reviews={@reviews} bookings={@new_bookings} />
     <main id="main" class="wrap swide" id-hook="board">
       <p :if={Phoenix.Flash.get(@flash, :error)} class="notice" role="alert">
         {Phoenix.Flash.get(@flash, :error)}

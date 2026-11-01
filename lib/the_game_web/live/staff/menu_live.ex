@@ -85,7 +85,7 @@ defmodule TheGameWeb.Staff.MenuLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header active={:menu} paused={@paused} reviews={@reviews} />
+    <.header active={:menu} paused={@paused} reviews={@reviews} bookings={@new_bookings} />
     <main id="main" class="wrap swide">
       <h1 class="h1">Menu and stock</h1>
       <p :if={@error} class="notice" role="alert">{@error}</p>
