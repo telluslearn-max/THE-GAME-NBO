@@ -7,7 +7,8 @@
   var form = $("#cart-form"), list = $("#lines"), empty = $("#cart-empty"), msg = $("#cart-msg");
   var pay = $("#pay"), totalEl = $("#total"), fItems = $("#f-items"), fTotal = $("#f-total");
   var paused = pay.disabled; // server-rendered pause state
-  var cart = TG.read(), feed = null, notes = {};
+  var cart = TG.read(), feed = null, notes = {}, hasUnpaid = false;
+  var phone = $("#phone"), blockedEl = $("#blocked"), openEl = $("#blocked-open");
 
   function ids() { return Object.keys(cart).filter(function (k) { return cart[k].q > 0; }); }
   function units() { return ids().reduce(function (n, k) { return n + cart[k].q; }, 0); }
@@ -28,7 +29,7 @@
   }
 
   function render() {
-    var keys = ids(), total = 0, blocked = false;
+    var keys = ids(), total = 0, blocked = false, unpaid = hasUnpaid;
     list.textContent = "";
     keys.forEach(function (id) {
       var l = cart[id], out = gone(id), li = document.createElement("li");
@@ -52,8 +53,8 @@
     var n = Object.keys(notes).map(function (k) { return notes[k]; });
     if (blocked) n.push("Remove the sold-out drinks to continue.");
     msg.hidden = !n.length; msg.textContent = n.join(" ");
-    pay.disabled = !any || blocked || paused || total <= 0;
-    pay.textContent = paused ? "Ordering paused" : "Pay " + TG.kes(total) + " with M-Pesa";
+    pay.disabled = !any || blocked || paused || total <= 0 || unpaid;
+    pay.textContent = unpaid ? "Finish or cancel the unpaid order first" : paused ? "Ordering paused" : "Place order · " + TG.kes(total);
   }
 
   list.addEventListener("click", function (e) {
@@ -71,6 +72,24 @@
     pay.disabled = true; pay.textContent = "Sending…"; // no double submits
   });
   window.addEventListener("pageshow", function (e) { if (e.persisted) { cart = TG.read(); render(); } });
+
+  // Stop a client who already has an unpaid order as soon as their number is typed.
+  var checkTimer;
+  function checkNumber() {
+    var v = phone.value.replace(/\s/g, "");
+    if (!/^(0|\+?254)?[17]\d{8}$/.test(v)) { hasUnpaid = false; blockedEl.hidden = true; render(); return; }
+    fetch("/cart/check?phone=" + encodeURIComponent(v), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) return;
+        hasUnpaid = !!j.blocked; blockedEl.hidden = !j.blocked;
+        if (j.order) { openEl.href = j.order; openEl.hidden = false; } else openEl.hidden = true;
+        render();
+      }).catch(function () {});
+  }
+  phone.addEventListener("input", function () { clearTimeout(checkTimer); checkTimer = setTimeout(checkNumber, 350); });
+  $("#blocked-recheck").addEventListener("click", checkNumber);
+  if (phone.value) checkNumber();
 
   function refresh() {
     if (document.visibilityState === "hidden") return;

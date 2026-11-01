@@ -32,7 +32,7 @@ const base = process.env.URL || "http://localhost:4100";
 
   await p.waitForSelector("text=Paid. The bar has your order", { timeout: 20000 });
   ok(true, "page flipped to Paid live, no reload");
-  ok((await p.textContent("#ticket")).includes("Pickup code"), "pickup code revealed after payment");
+  ok((await p.textContent("#ticket")).includes("Order reference"), "order reference shown after payment");
   await p.screenshot({ path: "/tmp/shots/order-paid-375.png" });
   ok(errs.length === 0, "no JS errors " + JSON.stringify(errs));
   await b.close();

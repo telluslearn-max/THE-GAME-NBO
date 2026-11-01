@@ -546,7 +546,28 @@ defmodule TheGame.Orders do
     end
   end
 
-  def cancel(order_id), do: transition(order_id, :cancelled)
+  @doc "Cancel an unpaid order. Refused once a waiter has the client's payment details (they may have paid)."
+  def cancel(order_id) do
+    Repo.transaction(fn ->
+      case lock(order_id) do
+        nil ->
+          Repo.rollback(:not_found)
+
+        %Order{status: :pending_payment, claimed_by_name: n} when is_binary(n) ->
+          Repo.rollback(:claimed)
+
+        _ ->
+          case transition_tx(order_id, :cancelled, %{}) do
+            {:ok, o} -> o
+            {:error, e} -> Repo.rollback(e)
+          end
+      end
+    end)
+    |> tap(fn
+      {:ok, o} -> notify(o)
+      _ -> :ok
+    end)
+  end
 
   @doc "Expire every unpaid order past its reservation. Returns the number expired."
   def expire_due(now \\ DateTime.utc_now()) do

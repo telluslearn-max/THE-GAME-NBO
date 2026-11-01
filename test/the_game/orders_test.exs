@@ -266,10 +266,17 @@ defmodule TheGame.OrdersTest do
       {:ok, c} =
         Orders.create_order(order_attrs([{product(), 1}], %{payer_phone: unique_phone()}))
 
-      {:ok, _} = Orders.claim(c.id, "Amina", "K932", "16:52")
       {:ok, _} = Orders.cancel(c.id)
       assert {:error, {:not_pending, :cancelled}} = Orders.confirm_till(c.id, "Amina")
       assert {:error, :not_found} = Orders.confirm_till(Ecto.UUID.generate(), "Amina")
+    end
+
+    test "an unpaid order can be cancelled until a waiter has taken the client's payment details",
+         %{order: o} do
+      {:ok, _} = Orders.claim(o.id, "Amina", "K932", "16:52")
+      assert {:error, :claimed} = Orders.cancel(o.id)
+      {:ok, _} = Orders.release(o.id)
+      assert {:ok, %{status: :cancelled}} = Orders.cancel(o.id)
     end
 
     test "an order that expired while the client was paying can still be confirmed, and retakes its stock",

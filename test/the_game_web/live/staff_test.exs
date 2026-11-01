@@ -241,18 +241,26 @@ defmodule TheGameWeb.StaffTest do
         |> form("#o-#{o.id} form.claimform", %{"last4" => "k932", "time" => "4:52 PM"})
         |> render_submit()
 
-      assert html =~ "Amina wrote"
-      assert html =~ "K932<i>·</i>4:52 PM"
+      # her card shows the drinks, the amount, the time and the code she wrote down
+      assert html =~ "Amount due"
+      assert html =~ "Time paid"
+      assert html =~ ~s(<b class="mono">4:52 PM</b>)
+      assert html =~ "M-Pesa code"
+      assert html =~ ~s(<b class="mono">K932</b>)
+      assert html =~ "Recorded by <b>Amina</b>"
       assert html =~ "Confirmed at counter"
       refute html =~ "code differs"
-      assert render(cust) =~ "has your code and is confirming your payment"
+      assert render(cust) =~ "has your payment details and is confirming your payment"
 
       # the counter confirmed on the POS: one tap, and it is paid and in the bar's New list
       html = view |> element(~s(#o-#{o.id} button), "Confirmed at counter") |> render_click()
       assert Orders.get_order!(o.id).status == :paid
       assert Orders.get_order!(o.id).confirmed_by_name == "Amina"
       refute html =~ "Waiting for payment"
-      assert html =~ "till …<b class=\"mono\">K932</b>"
+      assert html =~ "Amount paid"
+      assert html =~ ~s(<b class="mono">K932</b>)
+      assert html =~ ~s(<b class="mono">4:52 PM</b>)
+      assert html =~ "confirmed at counter"
       assert render(cust) =~ "Paid. The bar has your order"
 
       view |> element(~s(#o-#{o.id} button), "Start") |> render_click()

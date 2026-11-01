@@ -198,3 +198,8 @@ a { color: inherit; }
 .steps li::marker { color: var(--signal); font-weight: 700; }
 .steps .code { color: var(--signal); font-size: 20px; letter-spacing: .08em; }
 .copy { margin-left: 8px; min-height: 36px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line-2); background: transparent; color: var(--text); font-size: 13px; font-weight: 700; }
+
+.dont { margin: 14px 0 0; padding: 10px 12px; border-left: 3px solid var(--hot); background: rgba(255,91,58,.08); border-radius: 0 10px 10px 0; font-size: 15px; }
+.cancelsec { margin-top: 8px; }
+.cancelsec .h2 { margin: 0 0 8px; font: 800 13px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.btn.danger { border-color: var(--hot); color: var(--hot); margin-top: 8px; }

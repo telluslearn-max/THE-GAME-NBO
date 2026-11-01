@@ -27,6 +27,16 @@
 
     <div class="total"><span>Total</span><output id="total" class="mono">KES 0</output></div>
 
+    <div id="blocked" class="panel blocked" role="alert" hidden>
+      <p class="p"><b>This number has an unpaid order.</b></p>
+      <p class="help">
+        Finish or cancel it first. <b>If you already paid, don’t pay again:</b>
+        show your waiter your M-Pesa message.
+      </p>
+      <a id="blocked-open" class="btn ghost" href="#" hidden>Open my unpaid order</a>
+      <button id="blocked-recheck" type="button" class="linkbtn">Check again</button>
+    </div>
+
     <label class="field" for="phone">M-Pesa number that will pay</label>
     <input
       id="phone"
@@ -41,9 +51,9 @@
       aria-describedby="phone-help"
     />
     <p id="phone-help" class="help">
-      You’ll get an M-Pesa prompt on this phone. Your drinks are held for 10 minutes while you pay.
+      Enter the number you will pay from. You’ll then see how to pay. Your drinks are held for 30 minutes.
     </p>
 
-    <button id="pay" class="btn" type="submit" disabled={@paused}>Pay with M-Pesa</button>
+    <button id="pay" class="btn" type="submit" disabled={@paused}>Place order</button>
   </form>
 </main>

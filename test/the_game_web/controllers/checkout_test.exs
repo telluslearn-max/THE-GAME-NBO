@@ -113,4 +113,63 @@ defmodule TheGameWeb.CheckoutTest do
     [_, id] = Regex.run(~r|/order/([0-9a-f-]{36})|, redirected_to(conn))
     %{id: id}
   end
+
+  describe "unpaid-order check as the number is typed" do
+    test "a number with no unpaid order is not blocked", %{conn: conn} do
+      assert %{"blocked" => false, "order" => nil} =
+               conn |> get("/cart/check", %{"phone" => "0711 222 333"}) |> json_response(200)
+    end
+
+    test "junk numbers are simply not blocked", %{conn: conn} do
+      for bad <- ["", "123", "abc", "0612345678"] do
+        assert %{"blocked" => false} =
+                 conn |> get("/cart/check", %{"phone" => bad}) |> json_response(200)
+      end
+    end
+
+    test "the owner of the unpaid order is told, with a link to it", %{conn: conn, gin: gin} do
+      first = checkout(conn, gin, 1)
+      %{id: id} = order_id_from(first)
+
+      body =
+        recycle_with_cookies(conn, first)
+        |> get("/cart/check", %{"phone" => "0712 345 678"})
+        |> json_response(200)
+
+      assert %{"blocked" => true, "order" => link} = body
+      assert link == "/order/#{id}"
+    end
+
+    test "anyone else is only told 'blocked', never the order's address", %{conn: conn, gin: gin} do
+      first = checkout(conn, gin, 1)
+      %{id: id} = order_id_from(first)
+
+      res = build_conn() |> get("/cart/check", %{"phone" => "0712345678"})
+      assert %{"blocked" => true, "order" => nil} = json_response(res, 200)
+      refute res.resp_body =~ id
+      assert get_resp_header(res, "cache-control") == ["no-store"]
+    end
+
+    test "after cancelling, the number is free again", %{conn: conn, gin: gin} do
+      first = checkout(conn, gin, 1)
+      Orders.cancel(order_id_from(first).id)
+
+      assert %{"blocked" => false} =
+               build_conn()
+               |> get("/cart/check", %{"phone" => "0712345678"})
+               |> json_response(200)
+    end
+
+    test "the cart page offers the blocked message and a plain 'Place order' button", %{
+      conn: conn
+    } do
+      html = conn |> get(~p"/cart") |> html_response(200)
+      assert html =~ ~s(id="blocked")
+      assert html =~ "This number has an unpaid order."
+      assert html =~ "don’t pay again"
+      assert html =~ "Place order"
+      refute html =~ "3308963"
+      refute html =~ "111222"
+    end
+  end
 end

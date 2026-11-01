@@ -89,8 +89,14 @@ defmodule TheGameWeb.OrderLive do
 
     error =
       case Orders.cancel(id) do
-        {:ok, _} -> nil
-        {:error, _} -> "Couldn’t cancel this order. It may already be paid; check its status."
+        {:ok, _} ->
+          nil
+
+        {:error, :claimed} ->
+          "A waiter already has your payment details. Don’t pay again: ask them."
+
+        {:error, _} ->
+          "Couldn’t cancel this order. It may already be paid; check its status."
       end
 
     {:noreply,
@@ -221,13 +227,13 @@ defmodule TheGameWeb.OrderLive do
           @order.status in [:completed, :expired, :cancelled, :closed] && "dim"
         ]}
       >
-        <span class="ticket-k">{if has_code?(@order), do: "Pickup code", else: "Your code"}</span>
+        <span class="ticket-k">Order reference</span>
         <span class="ticket-code">{@order.pickup_code}</span>
         <span class="ticket-n">
           {cond do
-            @order.status == :ready -> "Give this code to your waiter"
-            has_code?(@order) -> "Give this code to your waiter"
-            @order.status == :pending_payment -> "Tell your waiter this code after you pay"
+            @order.status == :pending_payment -> "Keep this page open while you pay"
+            @order.status == :ready -> "Your waiter will bring it to you"
+            has_code?(@order) -> "Keep this page open"
             true -> "Quote this to staff if anything goes wrong"
           end}
         </span>
@@ -245,7 +251,7 @@ defmodule TheGameWeb.OrderLive do
         class="served"
         aria-live="polite"
       >
-        <b>{@order.claimed_by_name}</b> has your code and is confirming your payment
+        <b>{@order.claimed_by_name}</b> has your payment details and is confirming your payment
       </p>
 
       <section :if={@order.status == :pending_payment and @till} class="panel till" aria-live="polite">
@@ -271,12 +277,16 @@ defmodule TheGameWeb.OrderLive do
             </button>
           </li>
           <li>
-            Then tell your waiter your code <b class="mono code">{@order.pickup_code}</b>
-            and show them the M-Pesa message.
+            Then show your waiter this page and your M-Pesa message.
+            They write down the code and time.
           </li>
         </ol>
         <p class="help">
           Pay the exact amount. Paying for more drinks later? Place a new order first. Don’t pay this till number again on its own.
+        </p>
+        <p class="dont" role="note">
+          <b>Already paid? Don’t pay again.</b>
+          Show your waiter your M-Pesa message and they will confirm it.
         </p>
       </section>
 
@@ -354,18 +364,38 @@ defmodule TheGameWeb.OrderLive do
 
         <p :if={@info} class="notice" role="status">{@info}</p>
         <p :if={@error} class="notice" role="alert">{@error}</p>
+      </section>
 
-        <div
-          :if={@pay in [:retry, :none] or match?({:waiting, _}, @pay) or @pay == :unresolved}
-          class="cancel"
-        >
-          <button :if={!@confirm_cancel} class="linkbtn" phx-click="ask_cancel">Cancel order</button>
+      <section
+        :if={@order.status == :pending_payment}
+        class="panel cancelsec"
+        aria-labelledby="cancel-h"
+      >
+        <h2 id="cancel-h" class="h2">Cancel this order</h2>
+        <p :if={@order.claimed_by_name} class="p">
+          <b>{@order.claimed_by_name}</b>
+          already has your payment details, so you can’t cancel here. <b>Don’t pay again.</b>
+          Ask {@order.claimed_by_name} if something is wrong.
+        </p>
+        <div :if={!@order.claimed_by_name}>
+          <p class="help">
+            Only cancel if you <b>haven’t paid</b>. Cancelling does not undo a payment you have already made.
+          </p>
+          <p class="help">
+            It also does not cancel an M-Pesa prompt on your phone.
+            <b>Don’t enter your PIN for this order after cancelling.</b>
+          </p>
+          <p class="help">Still want these drinks? Keep this order and pay by till.</p>
+          <button :if={!@confirm_cancel} class="btn ghost danger" phx-click="ask_cancel">
+            Cancel order
+          </button>
           <div :if={@confirm_cancel}>
-            <p class="help">
-              Cancel this unpaid order? An earlier M-Pesa prompt may still arrive. If money was deducted, ask staff before cancelling or paying again.
+            <p class="p">
+              <b>Cancel this unpaid order?</b>
+              If you have already paid, don’t pay again: keep the order and show your waiter your M-Pesa message.
             </p>
             <div class="row2">
-              <button class="btn ghost" phx-click="cancel" phx-disable-with="Cancelling…">
+              <button class="btn ghost danger" phx-click="cancel" phx-disable-with="Cancelling…">
                 Yes, cancel
               </button>
               <button class="linkbtn" phx-click="keep">Keep order</button>
@@ -377,7 +407,8 @@ defmodule TheGameWeb.OrderLive do
       <section :if={@order.status == :flagged or @review} class="panel" role="status">
         <p class="p">
           <b>A payment may belong to this order.</b>
-          Show staff your M-Pesa message and the reference <b class="mono">{@order.pickup_code}</b>. Please don’t pay again while they check.
+          Show staff your M-Pesa message. <b>Please don’t pay again</b>
+          while they check.
         </p>
       </section>
 
@@ -385,7 +416,7 @@ defmodule TheGameWeb.OrderLive do
         <p class="p">
           {if @order.status == :expired,
             do: "The hold on your drinks ran out.",
-            else: "This order was cancelled."} If you already paid, don’t pay again: show your waiter your M-Pesa message and the code <b class="mono">{@order.pickup_code}</b>.
+            else: "This order was cancelled."} If you already paid, don’t pay again: show your waiter your M-Pesa message and they will check it.
         </p>
         <a class="btn" href={~p"/"}>Start a new order</a>
       </section>

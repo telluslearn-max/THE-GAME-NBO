@@ -33,9 +33,18 @@ defmodule TheGameWeb.OrderLiveTest do
       assert html =~ "KES 2,500"
       assert html =~ ~s(data-copy="2500")
       assert html =~ ~s(phx-hook="Copy")
+      assert html =~ "Order reference"
       assert html =~ o.pickup_code
-      assert html =~ "tell your waiter your code"
+      # the client is never told to give a code to the waiter: she writes the M-Pesa code and time
+      refute html =~ "tell your waiter your code"
+      refute html =~ "Give this code"
+      assert html =~ "show your waiter this page and your M-Pesa message"
       assert html =~ "Don’t pay this till number again"
+      assert html =~ "Already paid? Don’t pay again."
+      # a visible Cancel section with the warnings
+      assert html =~ "Cancel this order"
+      assert html =~ "Only cancel if you <b>haven’t paid</b>"
+      assert html =~ "Don’t enter your PIN for this order after cancelling"
       # prompting is only an option, never automatic
       assert html =~ "Prefer a prompt on your phone?"
       assert Repo.aggregate(Payments.Payment, :count) == 0
@@ -47,7 +56,9 @@ defmodule TheGameWeb.OrderLiveTest do
       refute render(view) =~ "is confirming your payment"
 
       {:ok, _} = Orders.claim(o.id, "Amina", "K932", "16:52")
-      assert render(view) =~ "<b>Amina</b> has your code and is confirming your payment"
+
+      assert render(view) =~
+               "<b>Amina</b> has your payment details and is confirming your payment"
 
       {:ok, _} = Orders.confirm_till(o.id, "Amina")
       html = render(view)
@@ -55,7 +66,8 @@ defmodule TheGameWeb.OrderLiveTest do
       assert html =~ "You’ll be served by <b>Amina</b>"
       assert html =~ "Payment confirmed at the till"
       refute html =~ "Pay by till"
-      assert html =~ "Pickup code"
+      refute html =~ "Cancel this order"
+      assert html =~ "Order reference"
     end
 
     test "without a till number configured, the page falls back to the prompt", %{
@@ -80,6 +92,39 @@ defmodule TheGameWeb.OrderLiveTest do
       assert html =~ "Pay by till"
       refute html =~ "Send me an M-Pesa prompt"
       assert {:error, :stk_disabled} = Payments.request_stk(o.id)
+    end
+  end
+
+  describe "cancelling" do
+    setup do
+      Application.put_env(:the_game, :auto_prompt, false)
+      on_exit(fn -> Application.put_env(:the_game, :auto_prompt, true) end)
+    end
+
+    test "needs a confirmation, releases the drinks, and warns not to pay after cancelling", %{
+      conn: conn,
+      order: o,
+      gin: gin
+    } do
+      {:ok, view, _} = live_fresh(conn, o)
+      html = view |> element("button", "Cancel order") |> render_click()
+      assert html =~ "Cancel this unpaid order?"
+      assert html =~ "don’t pay again"
+      html = view |> element("button", "Yes, cancel") |> render_click()
+      assert html =~ "Order cancelled"
+      refute html =~ "Pay by till"
+      assert Repo.reload!(gin).stock == 9
+    end
+
+    test "once a waiter has the client's payment details, cancelling is not offered and is refused",
+         %{conn: conn, order: o} do
+      {:ok, view, _} = live_fresh(conn, o)
+      {:ok, _} = Orders.claim(o.id, "Amina", "K932", "16:52")
+      html = render(view)
+      assert html =~ "already has your payment details"
+      refute html =~ "Yes, cancel"
+      assert {:error, :claimed} = Orders.cancel(o.id)
+      assert Orders.get_order!(o.id).status == :pending_payment
     end
   end
 
@@ -117,7 +162,7 @@ defmodule TheGameWeb.OrderLiveTest do
     order: o
   } do
     {:ok, view, html} = live_fresh(conn, o)
-    assert html =~ "Your code"
+    assert html =~ "Order reference"
     assert html =~ ~s(data-status="pending_payment")
     render(view)
     p = Payments.latest_payment(o.id)
@@ -125,7 +170,7 @@ defmodule TheGameWeb.OrderLiveTest do
     Fake.complete(p.checkout_request_id, :success, receipt: "LIVE1")
     html = render(view)
     assert html =~ "Paid. The bar has your order"
-    assert html =~ "Pickup code"
+    assert html =~ "Order reference"
     assert html =~ "LIVE1"
     refute html =~ "Check your phone"
   end
@@ -225,8 +270,7 @@ defmodule TheGameWeb.OrderLiveTest do
     html = render(view)
     assert html =~ "Staff are checking your payment"
     assert html =~ "Please don’t pay again"
-    assert html =~ "Your code"
-    refute html =~ "Pickup code"
+    assert html =~ "Order reference"
   end
 
   describe "orders list and menu banner" do

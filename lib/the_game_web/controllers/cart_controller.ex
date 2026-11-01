@@ -5,6 +5,23 @@ defmodule TheGameWeb.CartController do
 
   def show(conn, _params), do: render_cart(conn, nil, "")
 
+  @doc """
+  Does this number already have an unpaid order? Asked as the client types their number, so
+  they are stopped before pressing Pay. Only a yes/no, plus a link when the unpaid order is
+  this browser's own (never anyone else's order id).
+  """
+  def check(conn, params) do
+    body =
+      with {:ok, phone} <- Phone.normalize(to_string(params["phone"] || "")),
+           %{id: id} <- Orders.unpaid_for_phone(phone) do
+        %{blocked: true, order: if(History.member?(conn, id), do: ~p"/order/#{id}")}
+      else
+        _ -> %{blocked: false, order: nil}
+      end
+
+    conn |> put_resp_header("cache-control", "no-store") |> json(body)
+  end
+
   @doc "Checkout. Validates everything on the server; the client's cart is only a request."
   def create(conn, params) do
     phone = to_string(params["phone"] || "")

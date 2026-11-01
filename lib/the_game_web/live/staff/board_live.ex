@@ -167,6 +167,19 @@ defmodule TheGameWeb.Staff.BoardLive do
   attr :draft, :map, default: %{}
 
   defp card(assigns) do
+    o = assigns.o
+    unpaid = o.status in [:pending_payment, :expired]
+    # for till payments (and anything unpaid) the time and code are what the waiter wrote down;
+    # for prompt payments they are Safaricom's own
+    from_waiter = unpaid or o.payment_method == "till"
+
+    assigns =
+      assign(assigns,
+        unpaid: unpaid,
+        time: if(from_waiter, do: o.recorded_time, else: o.paid_at && eat(Orders.paid_time(o))),
+        code: if(from_waiter, do: o.recorded_code, else: Orders.receipt_end(o))
+      )
+
     ~H"""
     <article
       class={["scard", @o.status == :ready && "go", @o.status == :flagged && "warn"]}
@@ -179,25 +192,42 @@ defmodule TheGameWeb.Staff.BoardLive do
       <ul class="slines">
         <li :for={i <- @o.items}><b>{i.qty}×</b> {i.name}</li>
       </ul>
-      <p :if={@o.status in [:pending_payment, :expired]} class="spay">
-        <b class={["chip-unpaid", @o.status == :expired && "gone"]}>
-          {if @o.status == :expired, do: "Expired", else: "Unpaid"}
-        </b>
-        {TheGame.Catalog.money(@o.total_cents)} · phone …<b class="mono">{TheGame.Phone.last4(@o.payer_phone)}</b>
+      <dl class="srows">
+        <div>
+          <dt>{if @unpaid, do: "Amount due", else: "Amount paid"}</dt>
+          <dd>
+            <b class="mono">{TheGame.Catalog.money(@o.total_cents)}</b>
+            <b :if={@unpaid} class={["chip-unpaid", @o.status == :expired && "gone"]}>
+              {if @o.status == :expired, do: "Expired", else: "Unpaid"}
+            </b>
+            <b :if={!@unpaid} class="chip-paid">Paid</b>
+          </dd>
+        </div>
+        <div :if={@time}>
+          <dt>Time paid</dt>
+          <dd><b class="mono">{@time}</b></dd>
+        </div>
+        <div :if={@code}>
+          <dt>M-Pesa code</dt>
+          <dd>…<b class="mono">{@code}</b></dd>
+        </div>
+        <div :if={@unpaid}>
+          <dt>Client’s phone</dt>
+          <dd>…<b class="mono">{TheGame.Phone.last4(@o.payer_phone)}</b></dd>
+        </div>
+      </dl>
+      <p
+        :if={@o.claimed_by_name && @o.recorded_code && (@unpaid or @o.payment_method == "till")}
+        class="spay"
+      >
+        Recorded by <b>{@o.claimed_by_name}</b>
+        <span :if={@o.confirmed_by_name}> · confirmed at counter</span>
       </p>
-      <p :if={@o.paid_at} class="spay">
-        Paid <b class="mono">{eat(Orders.paid_time(@o))}</b>
-        · {TheGame.Catalog.money(@o.total_cents)} · {if @o.payment_method == "till",
-          do: "till",
-          else: "M-Pesa"} …<b class="mono">{Orders.receipt_end(@o)}</b>
-      </p>
-      <p :if={@o.claimed_by_name && @o.recorded_code} class="slip">
+      <p :if={@o.claimed_by_name && @o.recorded_code && @o.mpesa_receipt} class="slip">
         <span class="slip-k">{@o.claimed_by_name} wrote</span>
         <span class="slip-code">{@o.recorded_code}<i>·</i>{@o.recorded_time}</span>
-        <span :if={@o.mpesa_receipt && Orders.code_matches?(@o)} class="slip-ok">✓ code matches</span>
-        <span :if={@o.mpesa_receipt && !Orders.code_matches?(@o)} class="slip-no">
-          code differs from the order’s
-        </span>
+        <span :if={Orders.code_matches?(@o)} class="slip-ok">✓ code matches</span>
+        <span :if={!Orders.code_matches?(@o)} class="slip-no">code differs from the order’s</span>
       </p>
       <p :if={@o.status == :completed} class="spay">
         Delivered{@o.claimed_by_name && " by " <> @o.claimed_by_name}

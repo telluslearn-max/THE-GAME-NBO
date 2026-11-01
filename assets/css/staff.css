@@ -90,3 +90,9 @@ select.text { padding-right: 8px; }
 .slip-no { font: 700 12px/1 var(--mono); color: var(--hot); }
 .chip-unpaid { display: inline-block; margin-right: 6px; padding: 3px 7px; border-radius: 99px; border: 1px solid var(--signal); color: var(--signal); font: 800 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .chip-unpaid.gone { border-color: var(--hot); color: var(--hot); }
+.srows { display: grid; gap: 6px; margin: 0 0 10px; }
+.srows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.srows dt { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.srows dd { margin: 0; font-size: 16px; text-align: right; }
+.srows dd b.mono { font-size: 17px; }
+.chip-paid { display: inline-block; margin-left: 6px; padding: 3px 7px; border-radius: 99px; background: var(--signal); color: var(--signal-ink); font: 800 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; }

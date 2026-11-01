@@ -66,6 +66,7 @@ defmodule TheGameWeb.Router do
   scope "/", TheGameWeb do
     pipe_through :api
     get "/menu.json", MenuController, :feed
+    get "/cart/check", CartController, :check
     post "/mpesa/callback/:token", MpesaController, :callback
   end
 
