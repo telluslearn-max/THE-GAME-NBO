@@ -4,7 +4,6 @@ defmodule TheGameWeb.Router do
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
-    plug :fetch_live_flash
     plug :put_root_layout, html: {TheGameWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
@@ -17,7 +16,9 @@ defmodule TheGameWeb.Router do
   scope "/", TheGameWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    get "/", MenuController, :index
+    get "/cart", StubController, :cart
+    get "/orders", StubController, :orders
   end
 
   # Other scopes may use custom stacks.

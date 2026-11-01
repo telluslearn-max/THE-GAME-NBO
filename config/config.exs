@@ -26,8 +26,7 @@ config :the_game, TheGameWeb.Endpoint,
 config :esbuild,
   version: "0.17.11",
   the_game: [
-    args:
-      ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    args: ~w(js/app.js css/app.css --bundle --target=es2017 --outdir=../priv/static/assets),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]

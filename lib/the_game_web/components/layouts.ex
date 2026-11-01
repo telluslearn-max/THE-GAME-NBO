@@ -1,14 +1,19 @@
 defmodule TheGameWeb.Layouts do
-  @moduledoc """
-  This module holds different layouts used by your application.
-
-  See the `layouts` directory for all templates available.
-  The "root" layout is a skeleton rendered as part of the
-  application router. The "app" layout is set as the default
-  layout on both `use TheGameWeb, :controller` and
-  `use TheGameWeb, :live_view`.
-  """
   use TheGameWeb, :html
 
   embed_templates "layouts/*"
+
+  # The wordmark is the Anton display face converted to a single SVG path at build time:
+  # zero font downloads, crisp at any size, ~1.1 KB inline.
+  @path_file Path.join(:code.priv_dir(:the_game) |> to_string(), "wordmark.path")
+  @external_resource @path_file
+  @wordmark_path File.read!(@path_file)
+
+  def wordmark(assigns) do
+    assigns = assign(assigns, :d, @wordmark_path)
+
+    ~H"""
+    <svg viewBox="0 12 409 90" role="img" aria-hidden="true"><path d={@d} /></svg>
+    """
+  end
 end
