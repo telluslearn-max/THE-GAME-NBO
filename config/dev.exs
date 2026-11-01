@@ -78,3 +78,8 @@ config :phoenix_live_view,
   debug_heex_annotations: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+# Dev: the fake M-Pesa settles every prompt as paid after 4 s so the full flow can be seen.
+# Try `auto: {:cancelled, 4000}` or `auto: nil` (then settle by hand with TheGame.Mpesa.Fake.complete/3).
+config :the_game, TheGame.Mpesa.Fake, auto: {:success, 4000}
+config :the_game, mpesa_callback_token: "dev-token"

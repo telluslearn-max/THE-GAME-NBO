@@ -26,6 +26,7 @@ defmodule TheGameWeb.Router do
   scope "/", TheGameWeb do
     pipe_through :api
     get "/menu.json", MenuController, :feed
+    post "/mpesa/callback/:token", MpesaController, :callback
   end
 
   # Other scopes may use custom stacks.

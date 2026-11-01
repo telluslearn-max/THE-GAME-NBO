@@ -29,3 +29,9 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Payments: deterministic tests. No background sweeper, no auto-settling fake.
+config :the_game,
+  start_sweeper: false,
+  stk_cooldown_seconds: 0,
+  mpesa_callback_token: "test-token"

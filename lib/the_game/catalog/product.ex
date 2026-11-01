@@ -18,6 +18,11 @@ defmodule TheGame.Catalog.Product do
     |> cast(attrs, [:name, :price_cents, :active, :stock])
     |> validate_required([:name, :price_cents])
     |> validate_number(:price_cents, greater_than: 0)
+    |> validate_change(:price_cents, fn :price_cents, c ->
+      if rem(c, 100) == 0,
+        do: [],
+        else: [price_cents: "must be a whole number of shillings (M-Pesa cannot charge cents)"]
+    end)
     |> validate_number(:stock, greater_than_or_equal_to: 0)
   end
 

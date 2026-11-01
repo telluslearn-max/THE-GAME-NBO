@@ -1,11 +1,13 @@
 defmodule TheGame.Payments.Payment do
   use Ecto.Schema
   @primary_key {:id, :binary_id, autogenerate: true}
-  @timestamps_opts [type: :utc_datetime]
+  @timestamps_opts [type: :utc_datetime_usec]
 
   # queued -> sent -> success | failed | timeout   (cancelled = user dismissed / order cancelled)
   @statuses ~w(queued sent success failed timeout cancelled)a
   def statuses, do: @statuses
+
+  @type t :: %__MODULE__{}
 
   schema "payments" do
     belongs_to :order, TheGame.Orders.Order, type: :binary_id

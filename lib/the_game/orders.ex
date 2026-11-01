@@ -96,7 +96,7 @@ defmodule TheGame.Orders do
         end
       end)
       |> tap(fn
-        {:ok, order} -> broadcast(order)
+        {:ok, order} -> notify(order)
         _ -> :ok
       end)
     else
@@ -221,28 +221,45 @@ defmodule TheGame.Orders do
           {:ok, Order.t()} | {:error, {:illegal_transition, atom, atom} | :not_found}
   def transition(order_id, to, attrs \\ %{}) do
     Repo.transaction(fn ->
-      case lock(order_id) do
-        nil ->
-          Repo.rollback(:not_found)
-
-        %Order{status: from} = order ->
-          unless Status.can?(from, to), do: Repo.rollback({:illegal_transition, from, to})
-
-          if Status.holds_stock?(from) and not Status.holds_stock?(to), do: release_stock(order)
-
-          order
-          |> Ecto.Changeset.change(
-            Map.merge(side_effects(to), Map.take(attrs, [:mpesa_receipt]))
-            |> Map.put(:status, to)
-          )
-          |> Repo.update!()
-          |> Repo.preload([:items, :payments], force: true)
+      case transition_tx(order_id, to, attrs) do
+        {:ok, order} -> order
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
     |> tap(fn
-      {:ok, order} -> broadcast(order)
+      {:ok, order} -> notify(order)
       _ -> :ok
     end)
+  end
+
+  @doc """
+  Same as `transition/3` but for use inside a caller's transaction: no broadcast.
+  The caller must call `notify/1` after its transaction commits.
+  """
+  def transition_tx(order_id, to, attrs \\ %{}) do
+    case lock(order_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Order{status: from} = order ->
+        if Status.can?(from, to) do
+          if Status.holds_stock?(from) and not Status.holds_stock?(to), do: release_stock(order)
+          if not Status.holds_stock?(from) and Status.holds_stock?(to), do: reacquire_stock(order)
+
+          changes =
+            side_effects(to)
+            |> Map.merge(Map.take(attrs, [:mpesa_receipt]))
+            |> Map.put(:status, to)
+
+          {:ok,
+           order
+           |> Ecto.Changeset.change(changes)
+           |> Repo.update!()
+           |> Repo.preload([:items, :payments], force: true)}
+        else
+          {:error, {:illegal_transition, from, to}}
+        end
+    end
   end
 
   defp side_effects(:paid), do: %{paid_at: now()}
@@ -260,6 +277,20 @@ defmodule TheGame.Orders do
     for %{product_id: pid, qty: q} when not is_nil(pid) <- items do
       from(p in Product, where: p.id == ^pid and not is_nil(p.stock))
       |> Repo.update_all(inc: [stock: q])
+    end
+
+    :ok
+  end
+
+  # Best effort when staff honour a late payment: take the stock back if it is still there.
+  defp reacquire_stock(order) do
+    for %{product_id: pid, qty: q} when not is_nil(pid) <-
+          Repo.all(from i in Item, where: i.order_id == ^order.id) do
+      from(p in Product,
+        where: p.id == ^pid and not is_nil(p.stock),
+        update: [set: [stock: fragment("greatest(? - ?, 0)", p.stock, ^q)]]
+      )
+      |> Repo.update_all([])
     end
 
     :ok
@@ -296,7 +327,7 @@ defmodule TheGame.Orders do
   def subscribe(order_id), do: Phoenix.PubSub.subscribe(TheGame.PubSub, "order:" <> order_id)
   def subscribe_staff, do: Phoenix.PubSub.subscribe(TheGame.PubSub, "staff")
 
-  defp broadcast(%Order{} = o) do
+  def notify(%Order{} = o) do
     Phoenix.PubSub.broadcast(TheGame.PubSub, "order:" <> o.id, {:order_updated, o})
     Phoenix.PubSub.broadcast(TheGame.PubSub, "staff", {:order_updated, o})
     Phoenix.PubSub.broadcast(TheGame.PubSub, "menu", :menu_changed)

@@ -15,7 +15,7 @@ defmodule TheGame.Orders.Status do
     flagged: [:preparing, :ready, :completed, :closed],
     completed: [:closed],
     expired: [:flagged, :closed],
-    cancelled: [:closed],
+    cancelled: [:flagged, :closed],
     closed: []
   }
 

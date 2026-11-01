@@ -28,6 +28,34 @@ if config_env() == :prod do
       For example: ecto://USER:PASS@HOST/DATABASE
       """
 
+  # --- M-Pesa ---------------------------------------------------------------
+  # Production never falls back to the fake silently: set MPESA_ADAPTER=fake explicitly
+  # for a demo, otherwise the Daraja credentials below are required.
+  mpesa_callback_token =
+    System.get_env("MPESA_CALLBACK_TOKEN") ||
+      raise "MPESA_CALLBACK_TOKEN is missing (long random string, part of the callback URL)"
+
+  config :the_game, mpesa_callback_token: mpesa_callback_token
+
+  if System.get_env("MPESA_ADAPTER") == "fake" do
+    config :the_game, mpesa_adapter: TheGame.Mpesa.Fake
+  else
+    env! = fn k -> System.get_env(k) || raise "environment variable #{k} is missing" end
+
+    config :the_game, mpesa_adapter: TheGame.Mpesa.Daraja
+
+    config :the_game, TheGame.Mpesa.Daraja,
+      base_url: System.get_env("MPESA_BASE_URL") || "https://api.safaricom.co.ke",
+      consumer_key: env!.("MPESA_CONSUMER_KEY"),
+      consumer_secret: env!.("MPESA_CONSUMER_SECRET"),
+      shortcode: env!.("MPESA_SHORTCODE"),
+      passkey: env!.("MPESA_PASSKEY"),
+      party_b: System.get_env("MPESA_PARTY_B"),
+      transaction_type: System.get_env("MPESA_TRANSACTION_TYPE") || "CustomerPayBillOnline",
+      callback_url:
+        "https://#{System.get_env("PHX_HOST") || "example.com"}/mpesa/callback/#{mpesa_callback_token}"
+  end
+
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :the_game, TheGame.Repo,
