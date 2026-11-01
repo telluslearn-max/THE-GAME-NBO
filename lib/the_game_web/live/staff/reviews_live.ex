@@ -96,7 +96,7 @@ defmodule TheGameWeb.Staff.ReviewsLive do
           </button>
         </div>
         <div :if={@confirm && elem(@confirm, 0) == r.id} class="sact">
-          <p class="help" style="width:100%">
+          <p class="help full">
             {if elem(@confirm, 1) == "honor",
               do: "Accept this payment and send the order to the bar?",
               else:

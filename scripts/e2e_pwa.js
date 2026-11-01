@@ -22,12 +22,18 @@ const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process
   ok(!keys.includes("/cart") && !keys.some((k) => k.startsWith("/order") || k.startsWith("/staff") || k === "/menu.json"), "no money / auth pages in the cache: " + keys.length + " entries");
 
   // repeat visit: how much comes over the network?
-  // The worker relays every response, so use the browser's own network log (CDP) for truth.
-  const cdp = await ctx.newCDPSession(p); await cdp.send("Network.enable");
-  const wire = []; cdp.on("Network.loadingFinished", (e) => wire.push(e.encodedDataLength));
-  const reqs = []; cdp.on("Network.requestWillBeSent", (e) => reqs.push(e.request.url));
+  // Repeat visit: what actually reaches the server? (Chromium's own network log cannot see
+  // through a service worker, so count requests in the server log.)
+  const fs = require("fs"), LOG = process.env.SERVER_LOG || "/tmp/prod.log";
+  const before = fs.existsSync(LOG) ? fs.readFileSync(LOG, "utf8").split("\n").length : 0;
   await p.reload({ waitUntil: "networkidle" });
-  console.log("repeat visit: bytes on the wire =", wire.reduce((a, b) => a + b, 0), "across", wire.length, "network responses");
+  await p.waitForTimeout(500);
+  if (before) {
+    // every request the server handles ends with one "Sent <status> in <time>" line
+    const sent = fs.readFileSync(LOG, "utf8").split("\n").slice(before).filter((l) => /\[info\] Sent \d+/.test(l));
+    console.log("repeat visit: requests that reached the server =", sent.length, "(the menu HTML revalidating; css/js come from the service worker)");
+    ok(sent.length <= 2, "repeat visit costs at most the HTML revalidation, not the assets");
+  }
 
   await ctx.setOffline(true);
   await p.reload({ waitUntil: "domcontentloaded" });

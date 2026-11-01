@@ -71,5 +71,7 @@ defmodule TheGameWeb.Router do
   # end
 
   defp put_live_js(conn, _), do: Plug.Conn.assign(conn, :page_js, "live")
-  defp put_noindex(conn, _), do: Plug.Conn.assign(conn, :noindex, true)
+  # Everything under /staff is private: unindexed, and gets the staff-only stylesheet.
+  defp put_noindex(conn, _),
+    do: conn |> Plug.Conn.assign(:noindex, true) |> Plug.Conn.assign(:staff_css, true)
 end

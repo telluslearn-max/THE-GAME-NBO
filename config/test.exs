@@ -37,3 +37,5 @@ config :the_game,
   mpesa_callback_token: "test-token"
 
 config :the_game, push_sender: TheGame.Push.Memory, vapid_public_key: "test-public-key"
+# Tests roll back their database changes, so a shared menu cache would leak between them.
+config :the_game, menu_cache: false

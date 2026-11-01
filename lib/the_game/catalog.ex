@@ -8,7 +8,10 @@ defmodule TheGame.Catalog do
   The public menu: categories in order, each with products (name, price, in_stock).
   Inactive products are hidden; a product may appear in several categories.
   """
-  def menu do
+  def menu, do: TheGame.MenuCache.fetch(&load_menu/0)
+
+  @doc false
+  def load_menu do
     rows =
       from(c in Category,
         join: pc in "product_categories",

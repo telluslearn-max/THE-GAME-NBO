@@ -19,6 +19,10 @@ defmodule TheGameWeb.Endpoint do
   #
   # You should set gzip to true if you are running phx.digest
   # when deploying your static files in production.
+  plug TheGameWeb.Plugs.ProxyProto
+  plug TheGameWeb.Plugs.Compress
+  plug TheGameWeb.Plugs.Security
+
   plug Plug.Static,
     at: "/",
     from: :the_game,

@@ -30,7 +30,7 @@ config :esbuild,
   version: "0.17.11",
   the_game: [
     args:
-      ~w(js/app.js js/cart.js js/live.js css/app.css --bundle --target=es2017 --outdir=../priv/static/assets),
+      ~w(js/app.js js/cart.js js/live.js css/app.css css/staff.css --bundle --target=es2017 --outdir=../priv/static/assets),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
   ]

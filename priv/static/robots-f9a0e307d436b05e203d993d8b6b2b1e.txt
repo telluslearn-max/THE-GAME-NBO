@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /staff
+Disallow: /cart
+Disallow: /order/
+Disallow: /orders
+Disallow: /mpesa
+Allow: /

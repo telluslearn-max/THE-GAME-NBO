@@ -12,3 +12,6 @@ config :logger, level: :info
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
+
+# Deployed behind a TLS-terminating proxy (Caddy): trust X-Forwarded-Proto/For from that one hop.
+config :the_game, trust_proxy: true

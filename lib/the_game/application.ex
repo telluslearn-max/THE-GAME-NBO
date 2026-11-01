@@ -13,6 +13,7 @@ defmodule TheGame.Application do
         TheGame.Repo,
         {DNSCluster, query: Application.get_env(:the_game, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: TheGame.PubSub},
+        TheGame.MenuCache,
         TheGame.Staff.RateLimit,
         {Task.Supervisor, name: TheGame.TaskSupervisor}
       ] ++ push_children() ++ gateway_children() ++ sweeper_children() ++ [TheGameWeb.Endpoint]
