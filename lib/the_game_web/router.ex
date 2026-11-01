@@ -17,8 +17,15 @@ defmodule TheGameWeb.Router do
     pipe_through :browser
 
     get "/", MenuController, :index
-    get "/cart", StubController, :cart
+    get "/cart", CartController, :show
+    post "/orders", CartController, :create
+    get "/order/:id", OrderController, :show
     get "/orders", StubController, :orders
+  end
+
+  scope "/", TheGameWeb do
+    pipe_through :api
+    get "/menu.json", MenuController, :feed
   end
 
   # Other scopes may use custom stacks.

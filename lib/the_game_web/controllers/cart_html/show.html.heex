@@ -1,0 +1,49 @@
+<header class="wrap top">
+  <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
+  <nav aria-label="Primary"><a class="navlink" href={~p"/orders"}>Orders</a></nav>
+</header>
+
+<main id="main" class="wrap">
+  <a class="back" href={~p"/"}>← Menu</a>
+  <h1 class="h1">Your order</h1>
+
+  <p :if={@error} class="notice" role="alert">{@error}</p>
+  <p :if={@paused && !@error} class="notice" role="status">
+    Ordering is paused for a short stock count. Check back soon, and don’t pay at the till while it’s paused.
+  </p>
+  <p id="cart-msg" class="notice" role="status" hidden></p>
+
+  <div id="cart-empty" class="empty" hidden>
+    <b>Your cart is empty</b>
+    <a class="btn ghost" href={~p"/"}>Browse the menu</a>
+  </div>
+
+  <form id="cart-form" method="post" action={~p"/orders"} hidden>
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <input type="hidden" name="items" id="f-items" />
+    <input type="hidden" name="expected_total" id="f-total" />
+
+    <ul id="lines" class="rows"></ul>
+
+    <div class="total"><span>Total</span><output id="total" class="mono">KES 0</output></div>
+
+    <label class="field" for="phone">M-Pesa number that will pay</label>
+    <input
+      id="phone"
+      name="phone"
+      type="tel"
+      inputmode="tel"
+      autocomplete="tel-national"
+      placeholder="0712 345 678"
+      value={@phone}
+      required
+      pattern="^\s*(0|\+?254)?[17][0-9 \-]{8,12}\s*$"
+      aria-describedby="phone-help"
+    />
+    <p id="phone-help" class="help">
+      You’ll get an M-Pesa prompt on this phone. Your drinks are held for 10 minutes while you pay.
+    </p>
+
+    <button id="pay" class="btn" type="submit" disabled={@paused}>Pay with M-Pesa</button>
+  </form>
+</main>

@@ -15,6 +15,12 @@
     <link rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer src={~p"/assets/js/app.js"}>
     </script>
+    <script
+      :if={assigns[:page_js]}
+      defer
+      src={TheGameWeb.Endpoint.static_path("/assets/js/" <> assigns[:page_js] <> ".js")}
+    >
+    </script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>

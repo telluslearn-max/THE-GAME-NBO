@@ -15,6 +15,12 @@
 
   window.TG = { read: read, write: write, kes: kes, MAX: MAX };
 
+  // Landing on an order page right after checkout: the cart has been spent.
+  if (/[?&]new=1\b/.test(location.search)) {
+    write({});
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  }
+
   var rows = $$(".row[data-id]");
   if (!rows.length) return; // not the menu page
 
