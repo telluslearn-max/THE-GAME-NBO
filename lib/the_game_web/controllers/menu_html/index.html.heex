@@ -7,6 +7,13 @@
 </header>
 
 <main id="main" class="wrap">
+  <a :if={@unpaid} class="banner" href={~p"/order/#{@unpaid.id}"}>
+    <span>
+      <b>Unpaid order {@unpaid.pickup_code}</b> · {TheGame.Catalog.money(@unpaid.total_cents)}
+    </span>
+    <span>Continue →</span>
+  </a>
+
   <p class="lede"><b>Order from your table.</b> Pay with M-Pesa. Show your code at the bar.</p>
 
   <p :if={@paused} class="notice" role="status">

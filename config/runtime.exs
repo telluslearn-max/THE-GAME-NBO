@@ -39,6 +39,11 @@ if config_env() == :prod do
 
   if System.get_env("MPESA_ADAPTER") == "fake" do
     config :the_game, mpesa_adapter: TheGame.Mpesa.Fake
+
+    # Demo only: settle every fake prompt as paid after N ms.
+    if ms = System.get_env("MPESA_FAKE_AUTO_MS") do
+      config :the_game, TheGame.Mpesa.Fake, auto: {:success, String.to_integer(ms)}
+    end
   else
     env! = fn k -> System.get_env(k) || raise "environment variable #{k} is missing" end
 

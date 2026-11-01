@@ -151,3 +151,30 @@ a { color: inherit; }
 .ticket-k { font: 700 11px/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: #5b574b; }
 .ticket-code { margin: 10px 0 6px; font: 800 68px/1 var(--mono); letter-spacing: .12em; padding-left: .12em; }
 .ticket-n { font-size: 13px; color: #5b574b; }
+
+/* Order page */
+.ticket.go { background: var(--signal); animation: glow 1.6s ease-in-out infinite; }
+.ticket.dim { opacity: .45; }
+@keyframes glow { 0%,100% { box-shadow: 0 0 0 0 rgba(214,255,63,.0); } 50% { box-shadow: 0 0 0 10px rgba(214,255,63,.18); } }
+.panel { margin: 0 0 20px; padding: 16px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--raise); }
+.panel.slim { padding: 10px 16px; }
+.panel .p { margin: 0 0 12px; font-size: 16px; }
+.panel .help { margin: 12px 0 0; }
+.panel .btn { margin-top: 4px; }
+.btn.wide { margin-top: 10px; }
+.linkbtn { background: none; border: 0; padding: 12px 4px; min-height: 44px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+.cancel { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 4px; }
+.row2 { display: flex; gap: 12px; align-items: center; }
+.row2 .btn { width: auto; flex: 1; }
+.notice[role="alert"] { border-left-color: var(--hot); }
+
+/* Orders list */
+.olink { display: block; text-decoration: none; padding: 4px 0; }
+.olink .price { white-space: normal; }
+.tag { margin-left: 8px; padding: 4px 8px; border-radius: 99px; border: 1px solid var(--line-2); font: 700 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); vertical-align: 2px; }
+.tag.ok { color: var(--signal); border-color: rgba(214,255,63,.4); }
+.tag.go { background: var(--signal); color: var(--signal-ink); border-color: var(--signal); }
+.tag.warn { color: var(--hot); border-color: rgba(255,91,58,.45); }
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--signal); border-radius: var(--r); text-decoration: none; font-size: 14px; }
+.banner b { color: var(--signal); }
+.panel.slim .help { margin: 0; }

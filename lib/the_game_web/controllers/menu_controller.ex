@@ -4,10 +4,21 @@ defmodule TheGameWeb.MenuController do
 
   def index(conn, _params) do
     render(conn, :index,
+      unpaid: unpaid_order(conn),
       categories: Catalog.menu(),
       paused: Settings.ordering_paused?(),
       page_title: "THE GAME — order and collect"
     )
+  end
+
+  # An open, unpaid order of this visitor (from their own cookie): offer to continue it.
+  defp unpaid_order(conn) do
+    now = DateTime.utc_now()
+
+    conn
+    |> TheGameWeb.History.ids()
+    |> TheGame.Orders.list_by_ids()
+    |> Enum.find(&(&1.status == :pending_payment and DateTime.compare(&1.expires_at, now) == :gt))
   end
 
   @doc """
