@@ -161,7 +161,15 @@ defmodule TheGameWeb.OrderLive do
   def headline(%{status: :pending_payment}), do: "Waiting for payment"
   def headline(%{status: :paid}), do: "Paid. The bar has your order"
   def headline(%{status: :preparing}), do: "Being prepared"
+
+  def headline(%{status: :ready, claimed_by_name: n}) when is_binary(n),
+    do: "Ready. #{n} will bring it"
+
   def headline(%{status: :ready}), do: "Ready. Your waiter will bring it"
+
+  def headline(%{status: :completed, claimed_by_name: n}) when is_binary(n),
+    do: "Delivered by #{n}. Enjoy"
+
   def headline(%{status: :completed}), do: "Delivered. Enjoy"
   def headline(%{status: :expired}), do: "Order expired"
   def headline(%{status: :cancelled}), do: "Order cancelled"
@@ -215,6 +223,14 @@ defmodule TheGameWeb.OrderLive do
           end}
         </span>
       </div>
+
+      <p
+        :if={@order.claimed_by_name && @order.status in [:paid, :preparing, :ready]}
+        class="served"
+        aria-live="polite"
+      >
+        You’ll be served by <b>{@order.claimed_by_name}</b>
+      </p>
 
       <section :if={@order.status == :pending_payment} class="panel" aria-live="polite">
         <p :if={@pay == :none and @auto_pay} class="p">

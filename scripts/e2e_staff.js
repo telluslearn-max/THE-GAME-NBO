@@ -49,8 +49,11 @@ const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process
   await card.getByRole("button", { name: "I’ve got this one" }).click();
   await s.waitForSelector(`article:has(.scode:text("${code}")) >> text=You have this`);
   ok(true, "waiter claimed the order");
+  await c.waitForSelector("text=You’ll be served by");
+  ok((await c.textContent(".served")).includes("Amina"), "customer's page says 'You'll be served by Amina'");
+  await c.screenshot({ path: "/tmp/shots/customer-served-375.png" });
   await card.getByRole("button", { name: "Delivered" }).click();
-  await c.waitForSelector("text=Delivered. Enjoy");
+  await c.waitForSelector("text=Delivered by Amina");
   ok(true, "delivered flows through");
   ok(errs.length === 0, "no JS errors " + JSON.stringify(errs));
 

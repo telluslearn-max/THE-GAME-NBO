@@ -76,6 +76,27 @@ defmodule TheGameWeb.OrderLiveTest do
     assert html =~ "ticket go"
   end
 
+  test "the customer sees which waiter will serve them, live, and who delivered", %{
+    conn: conn,
+    order: o
+  } do
+    {:ok, view, html} = live(conn, ~p"/order/#{o.id}")
+    refute html =~ "You’ll be served by"
+    Orders.mark_paid(o.id, "SRV1")
+    refute render(view) =~ "You’ll be served by"
+
+    {:ok, _} = Orders.claim(o.id, "Amina")
+    assert render(view) =~ "You’ll be served by <b>Amina</b>"
+
+    Orders.transition(o.id, :ready)
+    assert render(view) =~ "Ready. Amina will bring it"
+
+    {:ok, _} = Orders.deliver(o.id)
+    html = render(view)
+    assert html =~ "Delivered by Amina. Enjoy"
+    refute html =~ "You’ll be served by"
+  end
+
   test "a cancelled prompt offers a retry, and retry works", %{conn: conn, order: o} do
     {:ok, view, _} = live_fresh(conn, o)
     render(view)
