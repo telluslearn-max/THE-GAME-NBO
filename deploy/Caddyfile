@@ -1,0 +1,24 @@
+# TLS, HTTP/3, brotli/zstd and the WebSocket upgrade, in front of the app.
+# Caddy obtains and renews the certificate automatically for {$PHX_HOST}.
+{$PHX_HOST} {
+	encode zstd br gzip
+
+	# Fingerprinted assets never change: let phones and CDNs keep them for a year.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy app:4000 {
+		# the app trusts exactly this one hop for scheme and client address
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+		health_uri /healthz
+		health_interval 15s
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+	}
+}

@@ -29,6 +29,18 @@ defmodule TheGame.Release do
     end
   end
 
+  @doc "Load the starter menu (only when the menu is empty). Replace it through the staff app."
+  def seed do
+    load_app()
+
+    {:ok, _, _} =
+      Ecto.Migrator.with_repo(TheGame.Repo, fn _ ->
+        Code.eval_file(Application.app_dir(@app, "priv/repo/seeds.exs"))
+      end)
+
+    IO.puts("seed done")
+  end
+
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)
   defp load_app, do: Application.load(@app)
 end

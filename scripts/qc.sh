@@ -14,6 +14,7 @@ step "tests"           mix test
 
 if curl -fs -o /dev/null http://localhost:4100/; then
   step "performance budgets" node scripts/budget.js
+  [ -f /tmp/axe.min.js ] && step "accessibility (axe-core)" node scripts/a11y.js || echo "(skipping a11y: npm i axe-core and copy axe.min.js to /tmp/axe.min.js)"
   for t in e2e_menu e2e_checkout e2e_order e2e_staff e2e_pwa; do
     step "browser: $t"  node scripts/$t.js
   done

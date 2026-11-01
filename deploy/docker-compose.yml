@@ -1,0 +1,41 @@
+# One venue, one box. `cp .env.example .env`, fill it in, then:  docker compose up -d
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: the_game
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: the_game
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U the_game"]
+      interval: 10s
+      retries: 5
+
+  app:
+    build: ..
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: .env
+    environment:
+      DATABASE_URL: ecto://the_game:${DB_PASSWORD}@db/the_game
+      PORT: "4000"
+    command: ["sh", "-c", "/app/bin/migrate && /app/bin/server"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

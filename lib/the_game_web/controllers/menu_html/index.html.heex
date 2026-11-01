@@ -6,90 +6,93 @@
   </nav>
 </header>
 
-<main id="main" class="wrap">
-  <a :if={@unpaid} class="banner" href={~p"/order/#{@unpaid.id}"}>
-    <span>
-      <b>Unpaid order {@unpaid.pickup_code}</b> · {TheGame.Catalog.money(@unpaid.total_cents)}
-    </span>
-    <span>Continue →</span>
-  </a>
+<main id="main">
+  <div class="wrap">
+    <h1 class="sr">THE GAME menu</h1>
+    <a :if={@unpaid} class="banner" href={~p"/order/#{@unpaid.id}"}>
+      <span>
+        <b>Unpaid order {@unpaid.pickup_code}</b> · {TheGame.Catalog.money(@unpaid.total_cents)}
+      </span>
+      <span>Continue →</span>
+    </a>
 
-  <p class="lede"><b>Order from your table.</b> Pay with M-Pesa. Show your code at the bar.</p>
+    <p class="lede"><b>Order from your table.</b> Pay with M-Pesa. Show your code at the bar.</p>
 
-  <p :if={@paused} class="notice" role="status">
-    Ordering is paused for a short stock count. Check back soon, and don’t pay at the till while it’s paused.
-  </p>
+    <p :if={@paused} class="notice" role="status">
+      Ordering is paused for a short stock count. Check back soon, and don’t pay at the till while it’s paused.
+    </p>
 
-  <div class="search">
-    <label class="sr" for="q">Search drinks</label>
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
-    </svg>
-    <input
-      id="q"
-      type="search"
-      placeholder="Search drinks"
-      autocomplete="off"
-      autocapitalize="off"
-      spellcheck="false"
-      enterkeyhint="search"
-    />
-    <button id="qx" type="button" aria-label="Clear search" hidden>✕</button>
+    <div class="search">
+      <label class="sr" for="q">Search drinks</label>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+      </svg>
+      <input
+        id="q"
+        type="search"
+        placeholder="Search drinks"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        enterkeyhint="search"
+      />
+      <button id="qx" type="button" aria-label="Clear search" hidden>✕</button>
+    </div>
+  </div>
+
+  <div class="rail">
+    <div class="wrap" role="navigation" aria-label="Categories">
+      <a :for={c <- @categories} class="chip" href={"#c-" <> c.slug}>{c.name}</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section :for={{c, i} <- Enum.with_index(@categories, 1)} id={"c-" <> c.slug} class="sec">
+      <h2>{c.name} <span>{String.pad_leading(Integer.to_string(i), 2, "0")}</span></h2>
+      <ul class="rows">
+        <li
+          :for={p <- c.products}
+          class={["row", !p.in_stock && "out"]}
+          data-id={p.id}
+          data-name={p.name}
+          data-price={p.price_cents}
+        >
+          <div>
+            <span class="name">{p.name}</span>
+            <span class="price">{TheGame.Catalog.money(p.price_cents)}</span>
+          </div>
+          <div class="act">
+            <span :if={!p.in_stock} class="soldout">Sold out</span>
+            <button
+              :if={p.in_stock && !@paused}
+              class="add"
+              type="button"
+              data-a="add"
+              aria-label={"Add " <> p.name}
+            >
+              Add
+            </button>
+            <span
+              :if={p.in_stock && !@paused}
+              class="step"
+              role="group"
+              aria-label={p.name <> " quantity"}
+            >
+              <button type="button" data-a="dec" aria-label="Remove one">−</button>
+              <output aria-live="polite">0</output>
+              <button type="button" data-a="inc" aria-label="Add one">+</button>
+            </span>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <div id="none" class="empty" hidden role="status">
+      <b>No drinks match</b>Try a shorter name.
+    </div>
   </div>
 </main>
 
-<div class="rail">
-  <div class="wrap" role="navigation" aria-label="Categories">
-    <a :for={c <- @categories} class="chip" href={"#c-" <> c.slug}>{c.name}</a>
-  </div>
-</div>
-
-<div class="wrap">
-  <section :for={{c, i} <- Enum.with_index(@categories, 1)} id={"c-" <> c.slug} class="sec">
-    <h2>{c.name} <span>{String.pad_leading(Integer.to_string(i), 2, "0")}</span></h2>
-    <ul class="rows">
-      <li
-        :for={p <- c.products}
-        class={["row", !p.in_stock && "out"]}
-        data-id={p.id}
-        data-name={p.name}
-        data-price={p.price_cents}
-      >
-        <div>
-          <span class="name">{p.name}</span>
-          <span class="price">{TheGame.Catalog.money(p.price_cents)}</span>
-        </div>
-        <div class="act">
-          <span :if={!p.in_stock} class="soldout">Sold out</span>
-          <button
-            :if={p.in_stock && !@paused}
-            class="add"
-            type="button"
-            data-a="add"
-            aria-label={"Add " <> p.name}
-          >
-            Add
-          </button>
-          <span
-            :if={p.in_stock && !@paused}
-            class="step"
-            role="group"
-            aria-label={p.name <> " quantity"}
-          >
-            <button type="button" data-a="dec" aria-label="Remove one">−</button>
-            <output aria-live="polite">0</output>
-            <button type="button" data-a="inc" aria-label="Add one">+</button>
-          </span>
-        </div>
-      </li>
-    </ul>
-  </section>
-
-  <div id="none" class="empty" hidden role="status">
-    <b>No drinks match</b>Try a shorter name.
-  </div>
-</div>
-
-<div class="cartbar" aria-live="polite">
+<nav class="cartbar" aria-label="Your cart" aria-live="polite">
   <a href={~p"/cart"}><span class="l">0 drinks</span><span class="r">Review</span></a>
-</div>
+</nav>

@@ -108,6 +108,12 @@ defmodule TheGameWeb.HardeningTest do
     end
   end
 
+  test "healthz reports ok with the database up", %{conn: conn} do
+    conn = get(conn, "/healthz")
+    assert text_response(conn, 200) == "ok"
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
+  end
+
   describe "menu cache" do
     setup do
       Application.put_env(:the_game, :menu_cache, true)

@@ -193,7 +193,7 @@ defmodule TheGameWeb.OrderLive do
     </header>
 
     <main id="main" class="wrap">
-      <p class="status" role="status" aria-live="polite">{headline(@order)}</p>
+      <h1 class="status" aria-live="polite">{headline(@order)}</h1>
 
       <div
         id="ticket"
