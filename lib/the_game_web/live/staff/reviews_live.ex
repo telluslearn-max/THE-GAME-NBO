@@ -45,7 +45,7 @@ defmodule TheGameWeb.Staff.ReviewsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header admin={@admin} active={:reviews} paused={@paused} reviews={length(@reviews)} />
+    <.header role={@staff.role} active={:reviews} paused={@paused} reviews={length(@reviews)} />
     <main id="main" class="wrap swide">
       <h1 class="h1">Payments to check</h1>
       <p :if={@error} class="notice" role="alert">{@error}</p>

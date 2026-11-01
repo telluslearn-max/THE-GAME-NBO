@@ -43,9 +43,24 @@ defmodule TheGameWeb.StaffAuth do
     end
   end
 
+  # Role gate for a whole group of pages: `on_mount: {StaffAuth, {:area, :floor}}`.
+  # Waiters get the board only; floor staff the floor pages; managers everything.
+  def on_mount({:area, area}, _params, _session, socket) do
+    if Staff.allowed?(socket.assigns.staff, area) do
+      {:cont, socket}
+    else
+      {:halt, Phoenix.LiveView.push_navigate(socket, to: "/staff")}
+    end
+  end
+
+  # Pausing ordering is a floor/manager decision: refused for waiters even if the button is forged.
   defp pause_event("toggle_pause", _, socket) do
-    TheGame.Settings.pause_ordering(!TheGame.Settings.ordering_paused?())
-    {:halt, Phoenix.Component.assign(socket, paused: TheGame.Settings.ordering_paused?())}
+    if Staff.allowed?(socket.assigns.staff, :floor) do
+      TheGame.Settings.pause_ordering(!TheGame.Settings.ordering_paused?())
+      {:halt, Phoenix.Component.assign(socket, paused: TheGame.Settings.ordering_paused?())}
+    else
+      {:halt, socket}
+    end
   end
 
   defp pause_event(_, _, socket), do: {:cont, socket}

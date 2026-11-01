@@ -1,0 +1,47 @@
+/* Manager-only pages (Insights, Team). Loaded only there; floor staff and waiters never download it. */
+/* Insights */
+.rangebar { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+.rbtn { min-height: 44px; padding: 0 16px; border-radius: 99px; border: 1px solid var(--line-2); background: transparent; color: var(--dim); font-weight: 700; font-size: 14px; }
+.rbtn.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.stats.six { grid-template-columns: repeat(2, 1fr); }
+.stats .sub { font: 500 12px/1.2 var(--mono); color: var(--dim); }
+.isec { margin: 6px 0 18px; }
+.bars { width: 100%; max-width: 640px; height: auto; display: block; }
+.bars .axis { stroke: var(--line-2); stroke-width: 1; }
+.bars rect { fill: var(--signal); }
+.bars rect:hover { fill: var(--text); }
+.bars text { fill: var(--dim); font: 500 9px var(--mono); }
+.igrid { display: grid; gap: 4px 28px; }
+.rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rank li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+.rank .rn { font-weight: 600; overflow-wrap: anywhere; }
+.rank .rv { font-size: 13px; color: var(--dim); text-align: right; }
+.rank meter { grid-column: 1 / -1; width: 100%; height: 8px; }
+.rank meter::-webkit-meter-bar { background: var(--line); border: 0; border-radius: 99px; height: 8px; }
+.rank meter::-webkit-meter-optimum-value, .rank meter::-webkit-meter-suboptimum-value, .rank meter::-webkit-meter-even-less-good-value { background: var(--signal); border-radius: 99px; }
+.rank meter::-moz-meter-bar { background: var(--signal); border-radius: 99px; }
+.unsold { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.7; }
+b.out { color: var(--hot); }
+@media (min-width: 900px) {
+  .stats.six { grid-template-columns: repeat(6, 1fr); }
+  .igrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Team */
+.notice.ok { border-left-color: var(--signal); }
+.rolekey { display: grid; gap: 6px; margin: 4px 0 14px; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: var(--r); }
+.rolekey > div { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.rolekey dt { font: 800 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; min-width: 100px; }
+.rolekey dd { margin: 0; color: var(--dim); font-size: 14px; flex: 1; min-width: 180px; }
+.tform { grid-template-columns: 1fr; }
+.urow { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: center; }
+.uemail { color: var(--dim); font-size: 14px; overflow-wrap: anywhere; }
+.you { margin-left: 8px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--signal); color: var(--signal); font: 700 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; }
+.uf { display: flex; gap: 8px; }
+.uf .text { min-width: 0; }
+.pw { margin-top: 6px; } .pw summary { min-height: 44px; display: flex; align-items: center; color: var(--dim); font-size: 14px; cursor: pointer; }
+.pwf { padding-bottom: 8px; }
+@media (min-width: 900px) {
+  .tform { grid-template-columns: 1fr 1.4fr 1fr 1.2fr auto; }
+  .urow { grid-template-columns: 1.2fr 1.6fr 180px auto; }
+}

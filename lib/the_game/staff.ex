@@ -4,6 +4,8 @@ defmodule TheGame.Staff do
   alias TheGame.Repo
   alias TheGame.Staff.{RateLimit, User}
 
+  def list_users, do: Repo.all(from u in User, order_by: [asc: u.role, asc: u.email])
+
   def create_user(attrs), do: %User{} |> User.changeset(attrs) |> Repo.insert()
   @doc "Set the password of the account with this email (used by the env-driven reset on deploy)."
   def set_password(email, password) do
@@ -16,6 +18,51 @@ defmodule TheGame.Staff do
       user ->
         user |> TheGame.Staff.PasswordChange.changeset(%{password: password}) |> Repo.update()
     end
+  end
+
+  @doc "Who may see what. Waiters: the board. Floor staff: the board, payments, menu, today. Managers: everything."
+  def allowed?(%User{role: :admin}, _area), do: true
+  def allowed?(%User{role: :staff}, area), do: area in [:board, :floor]
+  def allowed?(%User{role: :waiter}, area), do: area == :board
+  def allowed?(_, _), do: false
+
+  def role_label(:admin), do: "Manager"
+  def role_label(:staff), do: "Floor staff"
+  def role_label(:waiter), do: "Waiter"
+
+  @doc "Change someone's role. The last active manager can't be demoted (everyone would be locked out of Team)."
+  def update_role(id, role) when role in [:admin, :staff, :waiter] do
+    user = Repo.get!(User, id)
+
+    if user.role == :admin and role != :admin and last_active_admin?(user) do
+      {:error, :last_admin}
+    else
+      user |> Ecto.Changeset.change(role: role) |> Repo.update()
+    end
+  end
+
+  @doc "Switch an account on or off. The last active manager can't be switched off."
+  def set_active(id, active?) do
+    user = Repo.get!(User, id)
+
+    if not active? and user.role == :admin and last_active_admin?(user) do
+      {:error, :last_admin}
+    else
+      user |> Ecto.Changeset.change(active: active?) |> Repo.update()
+    end
+  end
+
+  def reset_password(id, password) do
+    Repo.get!(User, id)
+    |> TheGame.Staff.PasswordChange.changeset(%{password: password})
+    |> Repo.update()
+  end
+
+  defp last_active_admin?(%User{id: id}) do
+    Repo.aggregate(
+      from(u in User, where: u.role == :admin and u.active == true and u.id != ^id),
+      :count
+    ) == 0
   end
 
   def admin?(%User{role: :admin}), do: true

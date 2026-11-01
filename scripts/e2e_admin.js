@@ -50,5 +50,34 @@ async function login(ctx, [email, password]) {
     ok(r.violations.length === 0, "axe: " + r.violations.length + " violations " + r.violations.map((v) => v.id + "(" + v.nodes.length + ")").join(","));
     for (const v of r.violations) console.log("   -", v.impact, v.id, v.help, v.nodes[0].target.join(" "));
   }
+
+  // Team: the manager adds a waiter, who sees only the board; promoting them widens their access
+  const tp = dp; const who = "waiter-" + Math.floor(Math.random() * 1e6) + "@bar.test";
+  await tp.goto(base + "/staff/team"); await tp.waitForSelector(".rolekey");
+  await tp.waitForFunction(() => window.liveSocket && window.liveSocket.isConnected());
+  ok((await tp.textContent("main")).includes("Floor staff"), "Team page explains the roles");
+  await tp.click("summary:has-text('Add a person')");
+  await tp.fill('form[phx-submit=add] input[name=name]', "E2E Waiter"); await tp.fill('form[phx-submit=add] input[name=email]', who);
+  await tp.selectOption('form[phx-submit=add] select[name=role]', "waiter"); await tp.fill('form[phx-submit=add] input[name=password]', "Game1234");
+  await tp.click('form[phx-submit=add] button[type=submit]'); await tp.waitForSelector("text=added as Waiter");
+  ok(true, "manager added a waiter");
+  const wctx = await b.newContext({ viewport: { width: 375, height: 812 } }); const wp = await login(wctx, [who, "Game1234"]);
+  ok(wp.url().endsWith("/staff"), "the waiter lands on the board");
+  const navLinks = async () => wp.$$eval("nav.snav a", (a) => a.map((x) => x.textContent.trim().replace(/\s+\d+$/, "")));
+  ok(JSON.stringify(await navLinks()) === JSON.stringify(["Board"]), "the waiter's menu is just: Board — " + JSON.stringify(await navLinks()));
+  ok((await wp.locator("button.switch").count()) === 0, "no pause switch for a waiter");
+  await wp.goto(base + "/staff/menu"); await wp.waitForTimeout(1200);
+  ok(!wp.url().endsWith("/menu"), "the waiter can't open Menu");
+  await tp.selectOption("#u-" + (await tp.$eval('#main li:has-text("' + who + '")', (e) => e.id.slice(2))) + " select", "staff");
+  await tp.waitForSelector("text=is now Floor staff");
+  await wp.goto(base + "/staff"); await wp.waitForSelector("nav.snav");
+  ok((await navLinks()).includes("Menu") && !(await navLinks()).includes("Team"), "after promotion to Floor staff: Menu appears, Team does not");
+  if (fs.existsSync(process.env.AXE || "/tmp/axe.min.js")) {
+    await tp.evaluate(fs.readFileSync(process.env.AXE || "/tmp/axe.min.js", "utf8"));
+    const r = await tp.evaluate(() => axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] } }));
+    ok(r.violations.length === 0, "axe on Team: " + r.violations.length + " violations " + r.violations.map((v) => v.id).join(","));
+    for (const v of r.violations) console.log("   -", v.impact, v.id, v.help, v.nodes[0].target.join(" "));
+  }
+  await tp.screenshot({ path: "/tmp/shots/team-1280.png", fullPage: true });
   await b.close();
 })();

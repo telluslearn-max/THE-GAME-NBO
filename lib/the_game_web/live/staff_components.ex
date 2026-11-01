@@ -11,7 +11,7 @@ defmodule TheGameWeb.StaffComponents do
   attr :active, :atom, required: true
   attr :paused, :boolean, required: true
   attr :reviews, :integer, default: 0
-  attr :admin, :boolean, default: false
+  attr :role, :atom, default: :staff
 
   def header(assigns) do
     ~H"""
@@ -21,6 +21,7 @@ defmodule TheGameWeb.StaffComponents do
           <TheGameWeb.Layouts.wordmark />
         </a>
         <button
+          :if={@role in [:admin, :staff]}
           type="button"
           class={["switch", @paused && "off"]}
           phx-click="toggle_pause"
@@ -33,13 +34,36 @@ defmodule TheGameWeb.StaffComponents do
       </div>
       <nav class="snav" aria-label="Staff">
         <a href={~p"/staff"} aria-current={@active == :board && "page"}>Board</a>
-        <a href={~p"/staff/reviews"} aria-current={@active == :reviews && "page"}>
+        <a
+          :if={@role in [:admin, :staff]}
+          href={~p"/staff/reviews"}
+          aria-current={@active == :reviews && "page"}
+        >
           Payments <span :if={@reviews > 0} class="count">{@reviews}</span>
         </a>
-        <a href={~p"/staff/menu"} aria-current={@active == :menu && "page"}>Menu</a>
-        <a href={~p"/staff/today"} aria-current={@active == :today && "page"}>Today</a>
-        <a :if={@admin} href={~p"/staff/insights"} aria-current={@active == :insights && "page"}>
+        <a
+          :if={@role in [:admin, :staff]}
+          href={~p"/staff/menu"}
+          aria-current={@active == :menu && "page"}
+        >
+          Menu
+        </a>
+        <a
+          :if={@role in [:admin, :staff]}
+          href={~p"/staff/today"}
+          aria-current={@active == :today && "page"}
+        >
+          Today
+        </a>
+        <a
+          :if={@role == :admin}
+          href={~p"/staff/insights"}
+          aria-current={@active == :insights && "page"}
+        >
           Insights
+        </a>
+        <a :if={@role == :admin} href={~p"/staff/team"} aria-current={@active == :team && "page"}>
+          Team
         </a>
         <form method="post" action={~p"/staff/logout"} class="out">
           <input type="hidden" name="_csrf_token" value={get_csrf_token()} />

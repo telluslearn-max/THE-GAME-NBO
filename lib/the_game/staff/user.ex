@@ -7,7 +7,8 @@ defmodule TheGame.Staff.User do
   @type t :: %__MODULE__{}
 
   schema "staff_users" do
-    field :role, Ecto.Enum, values: [:staff, :admin], default: :staff
+    field :name, :string, default: ""
+    field :role, Ecto.Enum, values: [:staff, :admin, :waiter], default: :staff
     field :email, :string
     field :password, :string, virtual: true, redact: true
     field :password_hash, :string, redact: true
@@ -17,11 +18,13 @@ defmodule TheGame.Staff.User do
 
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :password, :role])
+    |> cast(attrs, [:email, :password, :role, :name])
     |> update_change(:email, &(&1 |> String.trim() |> String.downcase()))
     |> validate_required([:email, :password])
     |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
     |> validate_length(:password, min: 8, max: 72)
+    |> update_change(:name, &String.trim/1)
+    |> validate_length(:name, max: 40)
     |> unique_constraint(:email)
     |> hash()
   end

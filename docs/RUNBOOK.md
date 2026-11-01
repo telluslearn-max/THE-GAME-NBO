@@ -1,5 +1,11 @@
 # Runbook
 
+## Team and roles (the manager's job)
+The manager signs in and opens **Team**: add each person with a name, email, password and role, change roles later,
+set a new password, or switch an account off (e.g. when someone leaves). Roles: **Manager** (everything), **Floor staff**
+(board, payments, menu, today), **Waiter** (the board only). Give each waiter their own login if you want them limited to the board.
+The shared floor login keeps working as Floor staff until you retire it.
+
 ## Admin login and Insights
 Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (a strong one) to create the owner's login on boot; it lands on **Insights**
 (revenue, busiest hours, top drinks, till vs prompt, delivery speed, orders per waiter, low stock, unsold items).

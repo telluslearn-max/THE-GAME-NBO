@@ -19,6 +19,10 @@ defmodule TheGameWeb.Router do
     plug :put_noindex
   end
 
+  pipeline :admin_css do
+    plug :put_admin_css
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -51,12 +55,28 @@ defmodule TheGameWeb.Router do
 
     post "/logout", StaffSessionController, :delete
 
-    live_session :staff, on_mount: {TheGameWeb.StaffAuth, :ensure_staff} do
+    # Everyone signed in sees the board (waiters: only the board).
+    live_session :staff_board, on_mount: {TheGameWeb.StaffAuth, :ensure_staff} do
       live "/", Staff.BoardLive
+    end
+
+    # Floor staff and managers.
+    live_session :staff_floor,
+      on_mount: [{TheGameWeb.StaffAuth, :ensure_staff}, {TheGameWeb.StaffAuth, {:area, :floor}}] do
       live "/reviews", Staff.ReviewsLive
       live "/menu", Staff.MenuLive
       live "/today", Staff.TodayLive
+    end
+  end
+
+  # Manager-only pages, with their own stylesheet.
+  scope "/staff", TheGameWeb do
+    pipe_through [:browser, :noindex, :live_assets, :require_staff, :admin_css]
+
+    live_session :staff_admin,
+      on_mount: [{TheGameWeb.StaffAuth, :ensure_staff}, {TheGameWeb.StaffAuth, {:area, :admin}}] do
       live "/insights", Staff.InsightsLive
+      live "/team", Staff.TeamLive
     end
   end
 
@@ -77,6 +97,8 @@ defmodule TheGameWeb.Router do
   # end
 
   defp put_live_js(conn, _), do: Plug.Conn.assign(conn, :page_js, "live")
+  defp put_admin_css(conn, _), do: Plug.Conn.assign(conn, :admin_css, true)
+
   # Everything under /staff is private: unindexed, and gets the staff-only stylesheet.
   defp put_noindex(conn, _),
     do: conn |> Plug.Conn.assign(:noindex, true) |> Plug.Conn.assign(:staff_css, true)
