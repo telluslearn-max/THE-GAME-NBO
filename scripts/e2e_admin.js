@@ -28,7 +28,7 @@ async function login(ctx, [email, password]) {
   await ap.goto(base + "/staff/login"); await ap.fill("#email", adminCreds[0]); await ap.fill("#password", adminCreds[1]); await ap.click("button[type=submit]");
   await ap.waitForURL("**/staff/insights");
   ok(true, "admin lands on Insights after signing in");
-  await ap.waitForSelector(".stats.six"); await ap.waitForFunction(() => window.liveSocket && window.liveSocket.isConnected());
+  await ap.waitForSelector(".stats.six"); await ap.waitForSelector(".phx-connected");
   for (const t of ["Revenue", "Sales by day", "Busiest hours", "Top drinks", "How they paid", "Service speed", "Orders per waiter", "Running low"]) ok((await ap.textContent("main")).includes(t), "section: " + t);
   ok((await ap.locator("svg.bars").count()) === 2, "two charts rendered");
   await ap.getByRole("button", { name: "Today" }).click(); await ap.waitForSelector('button[aria-pressed="true"]:has-text("Today")');
@@ -54,7 +54,7 @@ async function login(ctx, [email, password]) {
   // Team: the manager adds a waiter, who sees only the board; promoting them widens their access
   const tp = dp; const who = "waiter-" + Math.floor(Math.random() * 1e6) + "@bar.test";
   await tp.goto(base + "/staff/team"); await tp.waitForSelector(".rolekey");
-  await tp.waitForFunction(() => window.liveSocket && window.liveSocket.isConnected());
+  await tp.waitForSelector(".phx-connected");
   ok((await tp.textContent("main")).includes("Floor staff"), "Team page explains the roles");
   await tp.click("summary:has-text('Add a person')");
   await tp.fill('form[phx-submit=add] input[name=name]', "E2E Waiter"); await tp.fill('form[phx-submit=add] input[name=email]', who);
