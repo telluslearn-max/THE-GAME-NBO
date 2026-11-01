@@ -29,6 +29,16 @@ defmodule TheGame.Release do
 
     {:ok, _, _} =
       Ecto.Migrator.with_repo(TheGame.Repo, fn repo ->
+        # STAFF_RESET_PASSWORD=true re-applies STAFF_PASSWORD to the STAFF_EMAIL account on boot
+        # (how a hosted deploy changes a login without shell access). Remove the flag afterwards.
+        if email && password && System.get_env("STAFF_RESET_PASSWORD") in ~w(true 1) &&
+             repo.aggregate(TheGame.Staff.User, :count) > 0 do
+          case TheGame.Staff.set_password(email, password) do
+            {:ok, u} -> IO.puts("bootstrap: password reset for #{u.email}")
+            other -> IO.inspect(other, label: "bootstrap: password NOT reset")
+          end
+        end
+
         if email && password && repo.aggregate(TheGame.Staff.User, :count) == 0 do
           case TheGame.Staff.create_user(%{email: email, password: password}) do
             {:ok, u} -> IO.puts("bootstrap: created staff #{u.email}")

@@ -20,7 +20,7 @@ defmodule TheGame.Staff.User do
     |> update_change(:email, &(&1 |> String.trim() |> String.downcase()))
     |> validate_required([:email, :password])
     |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
-    |> validate_length(:password, min: 10, max: 72)
+    |> validate_length(:password, min: 8, max: 72)
     |> unique_constraint(:email)
     |> hash()
   end
@@ -30,4 +30,23 @@ defmodule TheGame.Staff.User do
   end
 
   defp hash(cs), do: cs
+end
+
+defmodule TheGame.Staff.PasswordChange do
+  @moduledoc false
+  import Ecto.Changeset
+
+  def changeset(user, attrs) do
+    user
+    |> cast(attrs, [:password])
+    |> validate_required([:password])
+    |> validate_length(:password, min: 8, max: 72)
+    |> then(fn
+      %{valid?: true, changes: %{password: pw}} = cs ->
+        cs |> put_change(:password_hash, Pbkdf2.hash_pwd_salt(pw)) |> delete_change(:password)
+
+      cs ->
+        cs
+    end)
+  end
 end

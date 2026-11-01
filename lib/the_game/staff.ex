@@ -5,6 +5,19 @@ defmodule TheGame.Staff do
   alias TheGame.Staff.{RateLimit, User}
 
   def create_user(attrs), do: %User{} |> User.changeset(attrs) |> Repo.insert()
+  @doc "Set the password of the account with this email (used by the env-driven reset on deploy)."
+  def set_password(email, password) do
+    email = email |> String.trim() |> String.downcase()
+
+    case Repo.get_by(User, email: email) do
+      nil ->
+        {:error, :not_found}
+
+      user ->
+        user |> TheGame.Staff.PasswordChange.changeset(%{password: password}) |> Repo.update()
+    end
+  end
+
   def get_user(id), do: Repo.get_by(User, id: id, active: true)
 
   @doc """

@@ -13,5 +13,5 @@ defmodule Mix.Tasks.TheGame.Staff.Create do
   end
 
   def run(_),
-    do: Mix.raise("usage: mix the_game.staff.create EMAIL PASSWORD (password 10+ chars)")
+    do: Mix.raise("usage: mix the_game.staff.create EMAIL PASSWORD (password 8+ chars)")
 end

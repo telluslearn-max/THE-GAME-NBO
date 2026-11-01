@@ -88,6 +88,17 @@ defmodule TheGameWeb.StaffTest do
       refute u.password_hash =~ @pw
     end
 
+    test "a password can be reset by email; the old one stops working, the new one works" do
+      staff!("reset@bar.test")
+      assert {:ok, _} = Staff.authenticate("reset@bar.test", @pw)
+      assert {:ok, _} = Staff.set_password(" RESET@bar.test ", "Game1234")
+      assert {:error, :invalid} = Staff.authenticate("reset@bar.test", @pw)
+      assert {:ok, _} = Staff.authenticate("reset@bar.test", "Game1234")
+      assert {:error, :not_found} = Staff.set_password("nobody@bar.test", "Game1234")
+      assert {:error, cs} = Staff.set_password("reset@bar.test", "short")
+      assert %{password: [_]} = errors_on(cs)
+    end
+
     test "a deactivated account is cut off immediately", %{conn: conn} do
       u = staff!()
       assert {:ok, _, _} = live(as_staff(conn, u), "/staff")
