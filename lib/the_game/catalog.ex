@@ -52,6 +52,24 @@ defmodule TheGame.Catalog do
 
   def list_categories, do: Repo.all(from c in Category, order_by: [asc: c.position, asc: c.name])
 
+  @doc "Find or create a category by name (new ones go to the end of the menu)."
+  def ensure_category(name) when is_binary(name) do
+    name = name |> String.trim() |> String.slice(0, 40)
+    slug = name |> String.downcase() |> String.replace(~r/[^a-z0-9]+/, "-") |> String.trim("-")
+
+    cond do
+      slug == "" ->
+        {:error, :blank}
+
+      cat = Repo.get_by(Category, slug: slug) ->
+        {:ok, cat}
+
+      true ->
+        pos = (Repo.aggregate(Category, :max, :position) || 0) + 1
+        {:ok, Repo.insert!(%Category{name: name, slug: slug, position: pos})}
+    end
+  end
+
   @doc "Create a product and list it under a category. Price is in whole KES."
   def create_product(attrs, category_id) do
     Repo.transaction(fn ->

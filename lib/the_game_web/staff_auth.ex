@@ -28,7 +28,11 @@ defmodule TheGameWeb.StaffAuth do
 
         socket =
           socket
-          |> Phoenix.Component.assign(staff: user, paused: TheGame.Settings.ordering_paused?())
+          |> Phoenix.Component.assign(
+            staff: user,
+            admin: Staff.admin?(user),
+            paused: TheGame.Settings.ordering_paused?()
+          )
           |> Phoenix.LiveView.attach_hook(:staff_pause, :handle_event, &pause_event/3)
           |> Phoenix.LiveView.attach_hook(:staff_menu_sync, :handle_info, &menu_sync/2)
 

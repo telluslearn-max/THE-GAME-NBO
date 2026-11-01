@@ -18,6 +18,9 @@ defmodule TheGame.Staff do
     end
   end
 
+  def admin?(%User{role: :admin}), do: true
+  def admin?(_), do: false
+
   def get_user(id), do: Repo.get_by(User, id: id, active: true)
 
   @doc """

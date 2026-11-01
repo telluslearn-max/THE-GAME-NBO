@@ -38,23 +38,35 @@ defmodule TheGameWeb.Staff.MenuLive do
     end
   end
 
-  def handle_event(
-        "create",
-        %{"name" => name, "price" => price, "category" => cat, "stock" => stock},
-        socket
-      ) do
+  def handle_event("create", %{"name" => name, "price" => price, "stock" => stock} = p, socket) do
     attrs = %{
       "name" => String.trim(name),
       "price_cents" => kes_to_cents(price),
       "stock" => blank_to_nil(stock)
     }
 
-    case cat != "" && Catalog.create_product(attrs, cat) do
-      {:ok, prod} -> {:noreply, socket |> assign(error: nil, saved: prod.id) |> load()}
-      {:error, %Ecto.Changeset{} = cs} -> {:noreply, assign(socket, error: first_error(cs))}
-      _ -> {:noreply, assign(socket, error: "Pick a category.")}
+    with {:ok, cat_id} <- category_id(p),
+         {:ok, prod} <- Catalog.create_product(attrs, cat_id) do
+      {:noreply, socket |> assign(error: nil, saved: prod.id) |> load()}
+    else
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:noreply, assign(socket, error: first_error(cs))}
+
+      {:error, :no_category} ->
+        {:noreply, assign(socket, error: "Pick a category or type a new one.")}
     end
   end
+
+  # An existing category, or a new one typed in the box (found by name if it already exists).
+  defp category_id(%{"new_category" => new}) when is_binary(new) and new != "" do
+    case Catalog.ensure_category(new) do
+      {:ok, cat} -> {:ok, cat.id}
+      _ -> {:error, :no_category}
+    end
+  end
+
+  defp category_id(%{"category" => cat}) when is_binary(cat) and cat != "", do: {:ok, cat}
+  defp category_id(_), do: {:error, :no_category}
 
   defp kes_to_cents(v) do
     case Integer.parse(to_string(v) |> String.replace(",", "") |> String.trim()) do
@@ -85,7 +97,7 @@ defmodule TheGameWeb.Staff.MenuLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <.header active={:menu} paused={@paused} reviews={@reviews} />
+    <.header admin={@admin} active={:menu} paused={@paused} reviews={@reviews} />
     <main id="main" class="wrap swide">
       <h1 class="h1">Menu and stock</h1>
       <p :if={@error} class="notice" role="alert">{@error}</p>
@@ -95,10 +107,11 @@ defmodule TheGameWeb.Staff.MenuLive do
         <form phx-submit="create" class="pform">
           <input class="text" name="name" placeholder="Name" required />
           <input class="text" name="price" inputmode="numeric" placeholder="Price (KES)" required />
-          <select class="text" name="category" required>
+          <select class="text" name="category">
             <option value="">Category…</option>
             <option :for={c <- @categories} value={c.id}>{c.name}</option>
           </select>
+          <input class="text" name="new_category" maxlength="40" placeholder="…or a new category" />
           <input
             class="text"
             name="stock"

@@ -1,5 +1,11 @@
 # Runbook
 
+## Admin login and Insights
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (a strong one) to create the owner's login on boot; it lands on **Insights**
+(revenue, busiest hours, top drinks, till vs prompt, delivery speed, orders per waiter, low stock, unsold items).
+Waiters and bar staff keep the shared staff login and never see Insights. Staff can add menu items on the **Menu** page,
+including a new category. `STAFF_RESET_PASSWORD=true` also re-applies `ADMIN_PASSWORD` on boot; remove the flag afterwards.
+
 ## Till payments (the main way to pay)
 Set `TILL_NUMBER` to the Buy Goods till number clients pay. With no Safaricom API credentials, set
 `MPESA_ADAPTER=none` (no `MPESA_CALLBACK_TOKEN` needed); the prompt button then disappears and the till is the only way to pay.

@@ -7,6 +7,7 @@ defmodule TheGame.Staff.User do
   @type t :: %__MODULE__{}
 
   schema "staff_users" do
+    field :role, Ecto.Enum, values: [:staff, :admin], default: :staff
     field :email, :string
     field :password, :string, virtual: true, redact: true
     field :password_hash, :string, redact: true
@@ -16,7 +17,7 @@ defmodule TheGame.Staff.User do
 
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:email, :password])
+    |> cast(attrs, [:email, :password, :role])
     |> update_change(:email, &(&1 |> String.trim() |> String.downcase()))
     |> validate_required([:email, :password])
     |> validate_format(:email, ~r/^[^\s@]+@[^\s@]+\.[^\s@]+$/)

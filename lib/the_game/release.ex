@@ -5,6 +5,8 @@ defmodule TheGame.Release do
       bin/the_game eval "TheGame.Release.migrate()"
       bin/the_game eval 'TheGame.Release.create_staff("owner@example.com", "a long passphrase")'
   """
+  import Ecto.Query, only: [from: 2]
+
   @app :the_game
 
   def migrate do
@@ -39,7 +41,34 @@ defmodule TheGame.Release do
           end
         end
 
-        if email && password && repo.aggregate(TheGame.Staff.User, :count) == 0 do
+        # ADMIN_EMAIL + ADMIN_PASSWORD: the owner's login (sees the Insights page). Created once;
+        # with STAFF_RESET_PASSWORD=true its password is re-applied on boot.
+        admin_email = System.get_env("ADMIN_EMAIL")
+        admin_password = System.get_env("ADMIN_PASSWORD")
+
+        if admin_email && admin_password do
+          case repo.get_by(TheGame.Staff.User, email: String.downcase(String.trim(admin_email))) do
+            nil ->
+              case TheGame.Staff.create_user(%{
+                     email: admin_email,
+                     password: admin_password,
+                     role: :admin
+                   }) do
+                {:ok, u} -> IO.puts("bootstrap: created admin #{u.email}")
+                {:error, cs} -> IO.inspect(cs.errors, label: "bootstrap: admin not created")
+              end
+
+            _existing ->
+              if System.get_env("STAFF_RESET_PASSWORD") in ~w(true 1) do
+                IO.inspect(TheGame.Staff.set_password(admin_email, admin_password) |> elem(0),
+                  label: "bootstrap: admin password reset"
+                )
+              end
+          end
+        end
+
+        if email && password &&
+             repo.aggregate(from(u in TheGame.Staff.User, where: u.role == :staff), :count) == 0 do
           case TheGame.Staff.create_user(%{email: email, password: password}) do
             {:ok, u} -> IO.puts("bootstrap: created staff #{u.email}")
             {:error, cs} -> IO.inspect(cs.errors, label: "bootstrap: staff not created")

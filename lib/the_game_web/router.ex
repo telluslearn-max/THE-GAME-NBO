@@ -56,6 +56,7 @@ defmodule TheGameWeb.Router do
       live "/reviews", Staff.ReviewsLive
       live "/menu", Staff.MenuLive
       live "/today", Staff.TodayLive
+      live "/insights", Staff.InsightsLive
     end
   end
 

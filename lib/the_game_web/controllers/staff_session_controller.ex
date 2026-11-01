@@ -8,7 +8,9 @@ defmodule TheGameWeb.StaffSessionController do
   def create(conn, %{"email" => email, "password" => password}) do
     case Staff.authenticate(email, password, StaffAuth.client_key(conn)) do
       {:ok, user} ->
-        conn |> StaffAuth.log_in(user) |> redirect(to: "/staff")
+        conn
+        |> StaffAuth.log_in(user)
+        |> redirect(to: if(Staff.admin?(user), do: "/staff/insights", else: "/staff"))
 
       {:error, :rate_limited} ->
         conn
