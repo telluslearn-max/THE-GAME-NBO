@@ -161,8 +161,8 @@ defmodule TheGameWeb.OrderLive do
   def headline(%{status: :pending_payment}), do: "Waiting for payment"
   def headline(%{status: :paid}), do: "Paid. The bar has your order"
   def headline(%{status: :preparing}), do: "Being prepared"
-  def headline(%{status: :ready}), do: "Ready. Collect at the bar"
-  def headline(%{status: :completed}), do: "Collected. Enjoy"
+  def headline(%{status: :ready}), do: "Ready. Your waiter will bring it"
+  def headline(%{status: :completed}), do: "Delivered. Enjoy"
   def headline(%{status: :expired}), do: "Order expired"
   def headline(%{status: :cancelled}), do: "Order cancelled"
   def headline(%{status: :flagged}), do: "Staff are checking your payment"
@@ -209,8 +209,8 @@ defmodule TheGameWeb.OrderLive do
         <span class="ticket-code">{@order.pickup_code}</span>
         <span class="ticket-n">
           {cond do
-            @order.status == :ready -> "Show this at the bar"
-            has_code?(@order) -> "Keep this handy"
+            @order.status == :ready -> "Give this code to your waiter"
+            has_code?(@order) -> "Give this code to your waiter"
             true -> "Quote this to staff if anything goes wrong"
           end}
         </span>

@@ -9,8 +9,8 @@ defmodule TheGame.Orders.Status do
   # from => allowed targets
   @transitions %{
     pending_payment: [:paid, :expired, :cancelled, :flagged],
-    paid: [:preparing, :ready, :flagged, :closed],
-    preparing: [:ready, :flagged],
+    paid: [:preparing, :ready, :completed, :flagged, :closed],
+    preparing: [:ready, :completed, :flagged],
     ready: [:completed, :flagged],
     flagged: [:preparing, :ready, :completed, :closed],
     completed: [:closed],

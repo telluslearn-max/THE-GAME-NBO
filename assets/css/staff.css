@@ -66,3 +66,11 @@ select.text { padding-right: 8px; }
 
 /* Offline banner */
 .offline { position: fixed; left: 0; right: 0; top: 0; z-index: 60; padding: max(8px, env(safe-area-inset-top)) 16px 8px; background: var(--hot); color: #1a0a05; font: 700 13px/1.3 var(--sans); text-align: center; }
+
+.spay { margin: 0 0 10px; font-size: 13px; color: var(--dim); overflow-wrap: anywhere; }
+.spay b { color: var(--text); letter-spacing: .04em; }
+.serve { margin-top: 8px; align-items: center; }
+.sbtn.mine { border-color: var(--signal); color: var(--signal); }
+.chip-serve { flex: 1; font: 700 13px/1 var(--mono); color: var(--signal); padding: 8px 0; }
+.who { margin-bottom: 6px; }
+.snav a, .snav .out button { white-space: nowrap; }

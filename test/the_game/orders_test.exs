@@ -140,4 +140,52 @@ defmodule TheGame.OrdersTest do
 
     assert length(Enum.uniq(codes)) == 30
   end
+
+  describe "serving: claim, release, deliver, lookup" do
+    setup %{coke: coke} do
+      {:ok, o} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
+      {:ok, o} = Orders.mark_paid(o.id, "RKL1A2B3C9")
+      {:ok, order: o}
+    end
+
+    test "first claim wins, same name is a no-op, another name is told who has it", %{order: o} do
+      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "  Amina ")
+      assert {:ok, %{claimed_by_name: "Amina"}} = Orders.claim(o.id, "amina")
+      assert {:error, {:claimed, "Amina"}} = Orders.claim(o.id, "Brian")
+      assert {:error, :name_required} = Orders.claim(o.id, "   ")
+    end
+
+    test "release hands it back; only open orders can be claimed", %{order: o} do
+      {:ok, _} = Orders.claim(o.id, "Amina")
+      assert {:ok, %{claimed_by_name: nil}} = Orders.release(o.id)
+      assert {:ok, %{claimed_by_name: "Brian"}} = Orders.claim(o.id, "Brian")
+      {:ok, _} = Orders.deliver(o.id)
+      assert {:error, {:not_open, :completed}} = Orders.claim(o.id, "Amina")
+      assert {:error, :not_found} = Orders.claim(Ecto.UUID.generate(), "Amina")
+    end
+
+    test "deliver works from paid (the bar may not use the app) and from ready, once", %{order: o} do
+      assert {:ok, %{status: :completed, completed_at: t}} = Orders.deliver(o.id)
+      assert t
+      assert {:error, {:illegal_transition, :completed, :completed}} = Orders.deliver(o.id)
+    end
+
+    test "unpaid orders cannot be delivered or claimed", %{coke: coke} do
+      {:ok, u} = Orders.create_order(order_attrs([{coke, 1}], %{payer_phone: unique_phone()}))
+      assert {:error, {:illegal_transition, :pending_payment, :completed}} = Orders.deliver(u.id)
+      assert {:error, {:not_open, :pending_payment}} = Orders.claim(u.id, "Amina")
+    end
+
+    test "lookup by pickup code or the end of the M-Pesa code, case-insensitive, 4+ chars", %{
+      order: o
+    } do
+      assert [%{id: id}] = Orders.lookup(String.downcase(o.pickup_code))
+      assert id == o.id
+      assert [%{id: ^id}] = Orders.lookup("a2b3c9")
+      assert [%{id: ^id}] = Orders.lookup(" RKL1A2B3C9 ")
+      assert Orders.lookup("B3C") == []
+      assert Orders.lookup("ZZZZ") == []
+      assert Orders.lookup("%%%%") == []
+    end
+  end
 end

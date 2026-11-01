@@ -4,7 +4,7 @@ defmodule TheGameWeb.Staff.BoardLive do
   import TheGameWeb.StaffComponents
   alias TheGame.{Orders, Payments}
 
-  @next %{"preparing" => :preparing, "ready" => :ready, "completed" => :completed}
+  @next %{"preparing" => :preparing, "ready" => :ready}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -13,7 +13,10 @@ defmodule TheGameWeb.Staff.BoardLive do
       Process.send_after(self(), :tick, 30_000)
     end
 
-    {:ok, socket |> assign(page_title: "Board — THE GAME staff", code: "", found: []) |> load()}
+    {:ok,
+     socket
+     |> assign(page_title: "Board — THE GAME staff", code: "", found: [], waiter: "")
+     |> load()}
   end
 
   @impl true
@@ -41,9 +44,59 @@ defmodule TheGameWeb.Staff.BoardLive do
   end
 
   def handle_event("find", %{"code" => code}, socket) do
-    code = String.trim(code)
-    found = if String.length(code) >= 3, do: Orders.find_by_code(code), else: []
-    {:noreply, assign(socket, code: code, found: found)}
+    {:noreply, socket |> assign(code: String.trim(code)) |> refind()}
+  end
+
+  # The waiter's name lives in the browser (remembered between visits); no accounts.
+  def handle_event("set_waiter", %{"waiter" => name}, socket) do
+    {:noreply, assign(socket, waiter: name |> String.trim() |> String.slice(0, 30))}
+  end
+
+  def handle_event("claim", %{"id" => id}, socket) do
+    case Orders.claim(id, socket.assigns.waiter) do
+      {:ok, _} ->
+        {:noreply, socket |> clear_flash() |> load() |> refind()}
+
+      {:error, :name_required} ->
+        {:noreply, put_flash(socket, :error, "Type your name in the box at the top first.")}
+
+      {:error, {:claimed, who}} ->
+        {:noreply,
+         socket |> put_flash(:error, "#{who} already has that order.") |> load() |> refind()}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "That order can’t be claimed any more.")
+         |> load()
+         |> refind()}
+    end
+  end
+
+  def handle_event("release", %{"id" => id}, socket) do
+    Orders.release(id)
+    {:noreply, socket |> load() |> refind()}
+  end
+
+  def handle_event("deliver", %{"id" => id}, socket) do
+    case Orders.deliver(id) do
+      {:ok, _} ->
+        {:noreply, socket |> clear_flash() |> load() |> refind()}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           "That order can’t be marked delivered. The board has been refreshed."
+         )
+         |> load()
+         |> refind()}
+    end
+  end
+
+  defp refind(%{assigns: %{code: code}} = socket) do
+    assign(socket, found: if(String.length(code) >= 4, do: Orders.lookup(code), else: []))
   end
 
   defp load(socket) do
@@ -60,6 +113,7 @@ defmodule TheGameWeb.Staff.BoardLive do
 
   attr :o, :map, required: true
   attr :actions, :list, default: []
+  attr :waiter, :string, default: ""
 
   defp card(assigns) do
     ~H"""
@@ -74,7 +128,14 @@ defmodule TheGameWeb.Staff.BoardLive do
       <ul class="slines">
         <li :for={i <- @o.items}><b>{i.qty}×</b> {i.name}</li>
       </ul>
-      <div class="sact">
+      <p :if={@o.mpesa_receipt} class="spay">
+        {TheGame.Catalog.money(@o.total_cents)} · {eat(@o.paid_at)} · M-Pesa
+        <b class="mono">{@o.mpesa_receipt}</b>
+      </p>
+      <p :if={@o.status == :completed} class="spay">
+        Delivered{@o.claimed_by_name && " by " <> @o.claimed_by_name}
+      </p>
+      <div :if={@o.status in [:paid, :preparing, :ready]} class="sact">
         <button
           :for={{label, to, kind} <- @actions}
           class={["sbtn", kind]}
@@ -85,11 +146,40 @@ defmodule TheGameWeb.Staff.BoardLive do
         >
           {label}
         </button>
-        <a :if={@o.status == :flagged} class="sbtn" href={~p"/staff/reviews"}>Open payments</a>
       </div>
+      <div :if={@o.status in [:paid, :preparing, :ready]} class="sact serve">
+        <button
+          :if={is_nil(@o.claimed_by_name)}
+          class="sbtn mine"
+          phx-click="claim"
+          phx-value-id={@o.id}
+        >
+          I’ve got this one
+        </button>
+        <span :if={@o.claimed_by_name} class="chip-serve">
+          {if same_name?(@o.claimed_by_name, @waiter),
+            do: "You have this",
+            else: @o.claimed_by_name <> " has this"}
+        </span>
+        <button
+          :if={@o.claimed_by_name && same_name?(@o.claimed_by_name, @waiter)}
+          class="linkbtn"
+          phx-click="release"
+          phx-value-id={@o.id}
+        >
+          Give back
+        </button>
+        <button class="sbtn" phx-click="deliver" phx-value-id={@o.id} phx-disable-with="…">
+          Delivered
+        </button>
+      </div>
+      <a :if={@o.status == :flagged} class="sbtn" href={~p"/staff/reviews"}>Open payments</a>
     </article>
     """
   end
+
+  defp same_name?(a, b),
+    do: is_binary(a) and is_binary(b) and b != "" and String.downcase(a) == String.downcase(b)
 
   @impl true
   def render(assigns) do
@@ -100,6 +190,25 @@ defmodule TheGameWeb.Staff.BoardLive do
         {Phoenix.Flash.get(@flash, :error)}
       </p>
 
+      <form
+        id="waiter-form"
+        phx-hook="WaiterName"
+        phx-change="set_waiter"
+        phx-submit="set_waiter"
+        class="sfind who"
+      >
+        <label class="sr" for="waiter">Your name (for “I’ve got this one”)</label>
+        <input
+          id="waiter"
+          class="text"
+          name="waiter"
+          placeholder="Your name"
+          autocomplete="off"
+          maxlength="30"
+          phx-debounce="200"
+        />
+      </form>
+
       <form phx-change="find" phx-submit="find" class="sfind">
         <label class="sr" for="code">Find an order by code</label>
         <input
@@ -107,30 +216,28 @@ defmodule TheGameWeb.Staff.BoardLive do
           class="text"
           name="code"
           value={@code}
-          placeholder="Find by code"
+          placeholder="Find by code or M-Pesa ending"
           autocomplete="off"
           autocapitalize="characters"
-          maxlength="6"
+          maxlength="14"
           phx-debounce="150"
         />
       </form>
 
       <div :if={@found != []} class="sfound">
         <p class="sh">Found</p>
-        <article :for={o <- @found} class="scard">
-          <div class="scard-h">
-            <span class="scode">{o.pickup_code}</span><span class="sage">{o.status} · {eat(o.inserted_at)}</span>
-          </div>
-          <ul class="slines">
-            <li :for={i <- o.items}><b>{i.qty}×</b> {i.name}</li>
-          </ul>
-          <div class="sage">
-            {TheGame.Catalog.money(o.total_cents)} · {o.payer_phone} {o.mpesa_receipt &&
-              "· " <> o.mpesa_receipt}
-          </div>
-        </article>
+        <.card
+          :for={o <- @found}
+          o={o}
+          waiter={@waiter}
+          actions={
+            if o.status == :paid,
+              do: [{"Start", "preparing", ""}, {"Ready", "ready", "go"}],
+              else: if(o.status == :preparing, do: [{"Ready", "ready", "go"}], else: [])
+          }
+        />
       </div>
-      <p :if={@code != "" and String.length(@code) >= 3 and @found == []} class="help">
+      <p :if={String.length(@code) >= 4 and @found == []} class="help">
         No order with that code.
       </p>
 
@@ -141,22 +248,23 @@ defmodule TheGameWeb.Staff.BoardLive do
           <.card
             :for={o <- @paid}
             o={o}
+            waiter={@waiter}
             actions={[{"Start", "preparing", ""}, {"Ready", "ready", "go"}]}
           />
         </section>
         <section>
           <h2 class="sh">Preparing <span class="n">{length(@preparing)}</span></h2>
           <p :if={@preparing == []} class="none">Nothing in progress.</p>
-          <.card :for={o <- @preparing} o={o} actions={[{"Ready", "ready", "go"}]} />
+          <.card :for={o <- @preparing} o={o} waiter={@waiter} actions={[{"Ready", "ready", "go"}]} />
         </section>
         <section>
           <h2 class="sh">Ready <span class="n">{length(@ready)}</span></h2>
-          <p :if={@ready == []} class="none">Nothing waiting for pickup.</p>
-          <.card :for={o <- @ready} o={o} actions={[{"Collected", "completed", ""}]} />
+          <p :if={@ready == []} class="none">Nothing waiting to be delivered.</p>
+          <.card :for={o <- @ready} o={o} waiter={@waiter} />
         </section>
         <section :if={@flagged != []}>
           <h2 class="sh warn">Needs you <span class="n">{length(@flagged)}</span></h2>
-          <.card :for={o <- @flagged} o={o} />
+          <.card :for={o <- @flagged} o={o} waiter={@waiter} />
         </section>
       </div>
     </main>

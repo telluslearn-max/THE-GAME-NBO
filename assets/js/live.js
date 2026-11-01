@@ -24,6 +24,17 @@ const b64 = (s) => {
 };
 
 const Hooks = {
+  // Staff board: remember the waiter's typed name on this device and tell the server.
+  WaiterName: {
+    mounted() {
+      const input = this.el.querySelector("input");
+      let saved = "";
+      try { saved = localStorage.getItem("tg.waiter") || ""; } catch (e) {}
+      if (saved) { input.value = saved; this.pushEvent("set_waiter", { waiter: saved }); }
+      input.addEventListener("input", () => { try { localStorage.setItem("tg.waiter", input.value); } catch (e) {} });
+    },
+  },
+
   // Opt in to a push notification for this order. Hidden unless the browser supports it.
   PushOptIn: {
     async mounted() {

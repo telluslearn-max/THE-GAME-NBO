@@ -41,12 +41,17 @@ const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process
   await c.waitForSelector("text=Being prepared");
   ok(true, "customer sees 'Being prepared'");
   await card.getByRole("button", { name: "Ready" }).click();
-  await c.waitForSelector("text=Ready. Collect at the bar");
+  await c.waitForSelector("text=Ready. Your waiter will bring it");
   ok((await c.getAttribute("#ticket", "data-status")) === "ready", "customer ticket is ready (alert hook armed)");
   await c.screenshot({ path: "/tmp/shots/customer-ready-375.png" });
-  await card.getByRole("button", { name: "Collected" }).click();
-  await c.waitForSelector("text=Collected. Enjoy");
-  ok(true, "collected flows through");
+  // waiter flow: type name once, "I've got this one", then Delivered
+  await s.fill("#waiter", "Amina");
+  await card.getByRole("button", { name: "I’ve got this one" }).click();
+  await s.waitForSelector(`article:has(.scode:text("${code}")) >> text=You have this`);
+  ok(true, "waiter claimed the order");
+  await card.getByRole("button", { name: "Delivered" }).click();
+  await c.waitForSelector("text=Delivered. Enjoy");
+  ok(true, "delivered flows through");
   ok(errs.length === 0, "no JS errors " + JSON.stringify(errs));
 
   // staff on a phone

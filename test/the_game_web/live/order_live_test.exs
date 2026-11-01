@@ -71,7 +71,7 @@ defmodule TheGameWeb.OrderLiveTest do
     assert render(view) =~ "Being prepared"
     Orders.transition(o.id, :ready)
     html = render(view)
-    assert html =~ "Ready. Collect at the bar"
+    assert html =~ "Ready. Your waiter will bring it"
     assert html =~ ~s(data-status="ready")
     assert html =~ "ticket go"
   end

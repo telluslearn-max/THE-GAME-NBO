@@ -96,7 +96,7 @@ defmodule TheGameWeb.StaffTest do
       {:ok, conn: as_staff(conn, staff!()), gin: product(%{name: "Gin"})}
     end
 
-    test "a paid order appears live and moves through the bar to collected", %{
+    test "a paid order appears live and moves through the bar to delivered", %{
       conn: conn,
       gin: gin
     } do
@@ -114,9 +114,9 @@ defmodule TheGameWeb.StaffTest do
       view |> element(~s(#o-#{o.id} button), "Start") |> render_click()
       assert render(cust) =~ "Being prepared"
       view |> element(~s(#o-#{o.id} button), "Ready") |> render_click()
-      assert render(cust) =~ "Ready. Collect at the bar"
-      view |> element(~s(#o-#{o.id} button), "Collected") |> render_click()
-      assert render(cust) =~ "Collected"
+      assert render(cust) =~ "Ready. Your waiter will bring it"
+      view |> element(~s(#o-#{o.id} button), "Delivered") |> render_click()
+      assert render(cust) =~ "Delivered. Enjoy"
       refute render(view) =~ ~s(id="o-#{o.id}")
     end
 
@@ -137,10 +137,71 @@ defmodule TheGameWeb.StaffTest do
       {:ok, view, _} = live(conn, "/staff")
 
       html =
-        view |> form("form.sfind", %{"code" => String.downcase(o.pickup_code)}) |> render_change()
+        view
+        |> form("form[phx-change=find]", %{"code" => String.downcase(o.pickup_code)})
+        |> render_change()
 
       assert html =~ o.pickup_code
-      assert html =~ "completed"
+      assert html =~ "Delivered"
+    end
+
+    test "waiter claims with a typed name; first to tap wins; delivered closes it", %{
+      conn: conn,
+      gin: gin
+    } do
+      o = paid_order([{gin, 1}])
+      {:ok, view, _} = live(conn, "/staff")
+      {:ok, other, _} = live(conn, "/staff")
+
+      # no name yet: asked to type one, nothing changes
+      assert view |> element(~s(#o-#{o.id} button), "I’ve got this one") |> render_click() =~
+               "Type your name"
+
+      assert Orders.get_order!(o.id).claimed_by_name == nil
+
+      render_hook(view, "set_waiter", %{"waiter" => "Amina"})
+      html = view |> element(~s(#o-#{o.id} button), "I’ve got this one") |> render_click()
+      assert html =~ "You have this"
+      assert Orders.get_order!(o.id).claimed_by_name == "Amina"
+
+      # a second waiter sees who has it, and cannot take it
+      assert render(other) =~ "Amina has this"
+      render_hook(other, "set_waiter", %{"waiter" => "Brian"})
+      assert render_click(other, "claim", %{"id" => o.id}) =~ "Amina already has that order"
+      assert Orders.get_order!(o.id).claimed_by_name == "Amina"
+
+      view |> element(~s(#o-#{o.id} button), "Delivered") |> render_click()
+      assert Orders.get_order!(o.id).status == :completed
+    end
+
+    test "give back lets another waiter take it", %{conn: conn, gin: gin} do
+      o = paid_order([{gin, 1}])
+      {:ok, view, _} = live(conn, "/staff")
+      render_hook(view, "set_waiter", %{"waiter" => "Amina"})
+      view |> element(~s(#o-#{o.id} button), "I’ve got this one") |> render_click()
+      view |> element(~s(#o-#{o.id} button), "Give back") |> render_click()
+      assert Orders.get_order!(o.id).claimed_by_name == nil
+    end
+
+    test "cards show the M-Pesa code, amount and time, and lookup works by the code's ending", %{
+      conn: conn,
+      gin: gin
+    } do
+      o = paid_order([{gin, 2}])
+      receipt = Orders.get_order!(o.id).mpesa_receipt
+      {:ok, view, html} = live(conn, "/staff")
+      assert html =~ receipt
+      assert html =~ "M-Pesa"
+
+      ending = String.slice(receipt, -5, 5)
+
+      html =
+        view
+        |> form("form[phx-change=find]", %{"code" => String.downcase(ending)})
+        |> render_change()
+
+      assert html =~ "Found"
+      assert html =~ o.pickup_code
     end
 
     test "pause toggle blocks checkout for customers and shows on their menu", %{

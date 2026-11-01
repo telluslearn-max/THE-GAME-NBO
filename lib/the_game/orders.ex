@@ -67,6 +67,88 @@ defmodule TheGame.Orders do
     |> Repo.all()
   end
 
+  ## Serving: "I've got this one" and "Delivered"
+
+  @serving [:paid, :preparing, :ready]
+
+  @doc """
+  A waiter takes an order. First to tap wins; the same name again is a no-op; anyone else is
+  told who has it. The name is just typed text: no accounts, no change to anyone's routine.
+  """
+  def claim(order_id, name) when is_binary(name) do
+    name = name |> String.trim() |> String.slice(0, 30)
+
+    if name == "" do
+      {:error, :name_required}
+    else
+      Repo.transaction(fn ->
+        case lock(order_id) do
+          nil ->
+            Repo.rollback(:not_found)
+
+          %Order{status: s} when s not in @serving ->
+            Repo.rollback({:not_open, s})
+
+          %Order{claimed_by_name: nil} = o ->
+            o |> Ecto.Changeset.change(claimed_by_name: name, claimed_at: now()) |> Repo.update!()
+
+          %Order{claimed_by_name: held} = o ->
+            if String.downcase(held) == String.downcase(name),
+              do: o,
+              else: Repo.rollback({:claimed, held})
+        end
+      end)
+      |> reload_and_notify()
+    end
+  end
+
+  @doc "Give an order back (the waiter can't serve it after all)."
+  def release(order_id) do
+    Repo.transaction(fn ->
+      case lock(order_id) do
+        nil -> Repo.rollback(:not_found)
+        o -> o |> Ecto.Changeset.change(claimed_by_name: nil, claimed_at: nil) |> Repo.update!()
+      end
+    end)
+    |> reload_and_notify()
+  end
+
+  @doc "The drinks are with the customer. Allowed from any serving state: the bar may not use the app."
+  def deliver(order_id), do: transition(order_id, :completed)
+
+  defp reload_and_notify({:ok, %Order{id: id}}) do
+    o = get_order!(id)
+    notify(o)
+    {:ok, o}
+  end
+
+  defp reload_and_notify(error), do: error
+
+  @doc "Staff lookup: a pickup code, or the last 4+ characters of an M-Pesa code (last 36 hours)."
+  def lookup(term) when is_binary(term) do
+    t = term |> String.replace(~r/\s+/, "") |> String.upcase()
+    since = DateTime.add(DateTime.utc_now(), -36 * 3600)
+
+    # strip LIKE wildcards first: the *cleaned* term must still be a real 4+ character code,
+    # or "%%%%" would match every payment
+    safe = String.replace(t, ~r/[%_\\]/, "")
+
+    if String.length(t) < 4 or String.length(safe) < 4 do
+      []
+    else
+      from(o in Order,
+        where:
+          o.status in ^[:paid, :preparing, :ready, :completed, :flagged] and
+            o.inserted_at >= ^since and
+            (o.pickup_code == ^t or like(o.mpesa_receipt, ^("%" <> safe))),
+        order_by: [desc: o.inserted_at],
+        limit: 6,
+        preload: [:items]
+      )
+      |> Repo.all()
+    end
+  end
+
   @doc "Totals for the current EAT (UTC+3) calendar day."
   def today_summary(now \\ DateTime.utc_now()) do
     eat = DateTime.add(now, 3 * 3600)
