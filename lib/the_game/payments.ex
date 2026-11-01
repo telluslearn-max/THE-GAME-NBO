@@ -215,11 +215,35 @@ defmodule TheGame.Payments do
       desc: cb["ResultDesc"],
       receipt: meta["MpesaReceiptNumber"],
       amount: meta["Amount"],
+      paid_time: parse_transaction_date(meta["TransactionDate"]),
       source: :callback
     })
   end
 
   def handle_callback(_), do: {:error, :malformed}
+
+  # "20261101165200" (EAT) -> UTC datetime; anything unparseable is simply unknown.
+  defp parse_transaction_date(v) do
+    with s when is_binary(s) <- v && to_string(v),
+         [_, y, mo, d, h, mi, sec] <-
+           Regex.run(~r/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/, s),
+         {:ok, naive} <-
+           NaiveDateTime.new(
+             String.to_integer(y),
+             String.to_integer(mo),
+             String.to_integer(d),
+             String.to_integer(h),
+             String.to_integer(mi),
+             String.to_integer(sec)
+           ) do
+      naive
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.add(-3 * 3600)
+      |> DateTime.truncate(:second)
+    else
+      _ -> nil
+    end
+  end
 
   # Shared by callbacks and STK queries so both take exactly the same path.
   defp settle(checkout_id, result) when is_binary(checkout_id) do
@@ -288,7 +312,7 @@ defmodule TheGame.Payments do
       })
       |> Repo.update!()
 
-      apply_to_order(payment, receipt, paid_cents)
+      apply_to_order(payment, receipt, paid_cents, Map.get(result, :paid_time))
     end
   end
 
@@ -309,12 +333,16 @@ defmodule TheGame.Payments do
     {:review, order}
   end
 
-  defp apply_to_order(payment, receipt, paid_cents) do
+  defp apply_to_order(payment, receipt, paid_cents, paid_time) do
     order = from(o in Order, where: o.id == ^payment.order_id, lock: "FOR UPDATE") |> Repo.one()
 
     cond do
       order.status == :pending_payment and paid_cents >= order.total_cents ->
-        {:ok, _} = Orders.transition_tx(order.id, :paid, %{mpesa_receipt: receipt})
+        {:ok, _} =
+          Orders.transition_tx(order.id, :paid, %{
+            mpesa_receipt: receipt,
+            mpesa_paid_at: paid_time
+          })
 
         if paid_cents > order.total_cents do
           review!(

@@ -13,6 +13,14 @@ defmodule TheGameWeb.StaffTest do
     u
   end
 
+  defp eat_hm(order),
+    do:
+      order
+      |> then(&Orders.get_order!(&1.id))
+      |> Orders.paid_time()
+      |> DateTime.add(3 * 3600)
+      |> Calendar.strftime("%H:%M")
+
   defp last4(order), do: Orders.receipt_end(Orders.get_order!(order.id))
 
   defp as_staff(conn, u), do: init_test_session(conn, %{"staff_id" => u.id})
@@ -154,21 +162,27 @@ defmodule TheGameWeb.StaffTest do
       {:ok, view, _} = live(conn, "/staff")
       {:ok, other, _} = live(conn, "/staff")
 
-      claim = fn v, c ->
-        v |> form("#o-#{o.id} form.claimform", %{"last4" => c}) |> render_submit()
+      claim = fn v, c, t ->
+        v |> form("#o-#{o.id} form.claimform", %{"last4" => c, "time" => t}) |> render_submit()
       end
 
       # no name yet: asked to type one, nothing changes
-      assert claim.(view, code) =~ "Type your name"
+      assert claim.(view, code, eat_hm(o)) =~ "Type your name"
       assert Orders.get_order!(o.id).claimed_by_name == nil
 
       render_hook(view, "set_waiter", %{"waiter" => "Amina"})
       # a wrong or missing code is refused
-      assert claim.(view, "ZZZZ") =~ "don’t match this payment"
-      assert claim.(view, "") =~ "last 4 characters"
+      html_bad = claim.(view, "ZZZZ", eat_hm(o))
+      assert html_bad =~ "don’t match this payment"
+      # what she typed is kept, so one wrong character never means retyping everything
+      assert html_bad =~ ~s(value="ZZZZ")
+      assert html_bad =~ ~s(value="#{eat_hm(o)}")
+      assert claim.(view, code, "03:00") =~ "time doesn’t match"
+      assert claim.(view, "", eat_hm(o)) =~ "last 4 characters"
+      assert claim.(view, code, "") =~ "Type the time paid"
       assert Orders.get_order!(o.id).claimed_by_name == nil
 
-      html = claim.(view, String.downcase(code))
+      html = claim.(view, String.downcase(code), eat_hm(o))
       assert html =~ "You have this"
       assert html =~ "Slip"
       assert html =~ "#{o.pickup_code}<i>·</i>#{code}"
@@ -178,7 +192,7 @@ defmodule TheGameWeb.StaffTest do
       assert render(other) =~ "Amina has this"
       render_hook(other, "set_waiter", %{"waiter" => "Brian"})
 
-      assert render_hook(other, "claim", %{"oid" => o.id, "last4" => code}) =~
+      assert render_hook(other, "claim", %{"oid" => o.id, "last4" => code, "time" => eat_hm(o)}) =~
                "Amina already has that order"
 
       assert Orders.get_order!(o.id).claimed_by_name == "Amina"
@@ -191,7 +205,11 @@ defmodule TheGameWeb.StaffTest do
       o = paid_order([{gin, 1}])
       {:ok, view, _} = live(conn, "/staff")
       render_hook(view, "set_waiter", %{"waiter" => "Amina"})
-      view |> form("#o-#{o.id} form.claimform", %{"last4" => last4(o)}) |> render_submit()
+
+      view
+      |> form("#o-#{o.id} form.claimform", %{"last4" => last4(o), "time" => eat_hm(o)})
+      |> render_submit()
+
       view |> element(~s(#o-#{o.id} button), "Give back") |> render_click()
       assert Orders.get_order!(o.id).claimed_by_name == nil
     end

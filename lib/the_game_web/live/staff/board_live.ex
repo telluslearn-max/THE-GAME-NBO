@@ -15,7 +15,7 @@ defmodule TheGameWeb.Staff.BoardLive do
 
     {:ok,
      socket
-     |> assign(page_title: "Board — THE GAME staff", code: "", found: [], waiter: "")
+     |> assign(page_title: "Board — THE GAME staff", code: "", found: [], waiter: "", draft: %{})
      |> load()}
   end
 
@@ -52,10 +52,18 @@ defmodule TheGameWeb.Staff.BoardLive do
     {:noreply, assign(socket, waiter: name |> String.trim() |> String.slice(0, 30))}
   end
 
-  def handle_event("claim", %{"oid" => id, "last4" => last4}, socket) do
-    case Orders.claim(id, socket.assigns.waiter, last4) do
+  def handle_event("claim", %{"oid" => id, "last4" => last4, "time" => time}, socket) do
+    # keep what she typed so one wrong character never means retyping everything
+    socket = assign(socket, draft: Map.put(socket.assigns.draft, id, %{last4: last4, time: time}))
+
+    case Orders.claim(id, socket.assigns.waiter, last4, time) do
       {:ok, _} ->
-        {:noreply, socket |> clear_flash() |> load() |> refind()}
+        {:noreply,
+         socket
+         |> assign(draft: Map.delete(socket.assigns.draft, id))
+         |> clear_flash()
+         |> load()
+         |> refind()}
 
       {:error, :name_required} ->
         {:noreply, put_flash(socket, :error, "Type your name in the box at the top first.")}
@@ -68,12 +76,28 @@ defmodule TheGameWeb.Staff.BoardLive do
            "Type the last 4 characters of the M-Pesa code from the client’s phone."
          )}
 
+      {:error, :time_required} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Type the time paid, as the client’s M-Pesa message shows it (for example 16:52)."
+         )}
+
       {:error, :code_mismatch} ->
         {:noreply,
          put_flash(
            socket,
            :error,
            "Those 4 characters don’t match this payment. Check the M-Pesa code on the client’s phone."
+         )}
+
+      {:error, :time_mismatch} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "That time doesn’t match when this order was paid. Check the time on the client’s M-Pesa message."
          )}
 
       {:error, {:claimed, who}} ->
@@ -130,6 +154,7 @@ defmodule TheGameWeb.Staff.BoardLive do
   attr :o, :map, required: true
   attr :actions, :list, default: []
   attr :waiter, :string, default: ""
+  attr :draft, :map, default: %{}
 
   defp card(assigns) do
     ~H"""
@@ -145,7 +170,7 @@ defmodule TheGameWeb.Staff.BoardLive do
         <li :for={i <- @o.items}><b>{i.qty}×</b> {i.name}</li>
       </ul>
       <p :if={@o.paid_at && is_nil(@o.claimed_by_name)} class="spay">
-        Paid {eat(@o.paid_at)} · {TheGame.Catalog.money(@o.total_cents)}
+        Paid {eat(Orders.paid_time(@o))} · {TheGame.Catalog.money(@o.total_cents)}
       </p>
       <div :if={@o.claimed_by_name && @o.mpesa_receipt} class="slip">
         <span class="slip-k">Slip</span>
@@ -175,12 +200,23 @@ defmodule TheGameWeb.Staff.BoardLive do
           <input
             class="text last4"
             name="last4"
+            value={get_in(@draft, [@o.id, :last4])}
             maxlength="4"
             placeholder="Last 4 of M-Pesa code"
             autocomplete="off"
             autocapitalize="characters"
             inputmode="text"
             aria-label="Last 4 characters of the M-Pesa code on the client's phone"
+          />
+          <input
+            class="text time"
+            name="time"
+            value={get_in(@draft, [@o.id, :time])}
+            maxlength="8"
+            placeholder="Time paid"
+            autocomplete="off"
+            inputmode="text"
+            aria-label="Time paid, as the client's M-Pesa message shows it"
           />
           <button class="sbtn mine" type="submit">I’ve got this one</button>
         </form>
@@ -258,6 +294,7 @@ defmodule TheGameWeb.Staff.BoardLive do
           :for={o <- @found}
           o={o}
           waiter={@waiter}
+          draft={@draft}
           actions={
             if o.status == :paid,
               do: [{"Start", "preparing", ""}, {"Ready", "ready", "go"}],
@@ -277,22 +314,29 @@ defmodule TheGameWeb.Staff.BoardLive do
             :for={o <- @paid}
             o={o}
             waiter={@waiter}
+            draft={@draft}
             actions={[{"Start", "preparing", ""}, {"Ready", "ready", "go"}]}
           />
         </section>
         <section>
           <h2 class="sh">Preparing <span class="n">{length(@preparing)}</span></h2>
           <p :if={@preparing == []} class="none">Nothing in progress.</p>
-          <.card :for={o <- @preparing} o={o} waiter={@waiter} actions={[{"Ready", "ready", "go"}]} />
+          <.card
+            :for={o <- @preparing}
+            o={o}
+            waiter={@waiter}
+            draft={@draft}
+            actions={[{"Ready", "ready", "go"}]}
+          />
         </section>
         <section>
           <h2 class="sh">Ready <span class="n">{length(@ready)}</span></h2>
           <p :if={@ready == []} class="none">Nothing waiting to be delivered.</p>
-          <.card :for={o <- @ready} o={o} waiter={@waiter} />
+          <.card :for={o <- @ready} o={o} waiter={@waiter} draft={@draft} />
         </section>
         <section :if={@flagged != []}>
           <h2 class="sh warn">Needs you <span class="n">{length(@flagged)}</span></h2>
-          <.card :for={o <- @flagged} o={o} waiter={@waiter} />
+          <.card :for={o <- @flagged} o={o} waiter={@waiter} draft={@draft} />
         </section>
       </div>
     </main>

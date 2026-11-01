@@ -79,7 +79,7 @@ defmodule TheGame.Mpesa.Fake do
             "Item" => [
               %{"Name" => "Amount", "Value" => amount},
               %{"Name" => "MpesaReceiptNumber", "Value" => receipt},
-              %{"Name" => "TransactionDate", "Value" => 20_261_101_120_000},
+              %{"Name" => "TransactionDate", "Value" => eat_now_stamp()},
               %{"Name" => "PhoneNumber", "Value" => String.to_integer(st.phone)}
             ]
           }
@@ -102,6 +102,14 @@ defmodule TheGame.Mpesa.Fake do
           )
       }
     }
+  end
+
+  # Daraja sends TransactionDate as an integer yyyymmddhhmmss in East Africa Time.
+  defp eat_now_stamp do
+    DateTime.utc_now()
+    |> DateTime.add(3 * 3600)
+    |> Calendar.strftime("%Y%m%d%H%M%S")
+    |> String.to_integer()
   end
 
   # Dev convenience: config :the_game, TheGame.Mpesa.Fake, auto: {:success, 4000}

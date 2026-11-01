@@ -13,6 +13,9 @@ defmodule TheGameWeb.OrderLiveTest do
     {:ok, order: order, gin: gin}
   end
 
+  defp eat_hm(o),
+    do: o |> Orders.paid_time() |> DateTime.add(3 * 3600) |> Calendar.strftime("%H:%M")
+
   # The browser that just checked out carries the signed `fresh_order` session flag.
   defp live_fresh(conn, o),
     do: live(init_test_session(conn, %{"fresh_order" => o.id}), ~p"/order/#{o.id}")
@@ -85,7 +88,7 @@ defmodule TheGameWeb.OrderLiveTest do
     Orders.mark_paid(o.id, "SRV1")
     refute render(view) =~ "You’ll be served by"
 
-    {:ok, _} = Orders.claim(o.id, "Amina", "SRV1")
+    {:ok, _} = Orders.claim(o.id, "Amina", "SRV1", eat_hm(Orders.get_order!(o.id)))
     assert render(view) =~ "You’ll be served by <b>Amina</b>"
 
     Orders.transition(o.id, :ready)

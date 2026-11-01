@@ -83,3 +83,6 @@ select.text { padding-right: 8px; }
 .slip-code { font: 800 26px/1 var(--mono); letter-spacing: .06em; }
 .slip-code i { font-style: normal; color: var(--signal); padding: 0 .12em; }
 .slip-l { font: 500 13px/1.3 var(--mono); color: var(--dim); }
+.claimform { flex-wrap: wrap; }
+.claimform .time { flex: 1; min-width: 0; font: 700 16px/1 var(--mono); }
+.claimform .sbtn { flex: 1 0 100%; }

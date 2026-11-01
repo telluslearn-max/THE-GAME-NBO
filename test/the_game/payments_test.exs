@@ -85,6 +85,35 @@ defmodule TheGame.PaymentsTest do
       assert reviews(o) == []
     end
 
+    test "Safaricom's TransactionDate (EAT) becomes the order's actual payment time", %{order: o} do
+      p = sent!(o)
+
+      payload =
+        Fake.callback_payload(
+          p.checkout_request_id,
+          %{phone: "254712345678"},
+          0,
+          "ok",
+          "TD123456AB",
+          2500
+        )
+
+      # 16:52:10 East Africa Time == 13:52:10 UTC
+      payload =
+        put_in(
+          payload,
+          ["Body", "stkCallback", "CallbackMetadata", "Item"],
+          Enum.map(payload["Body"]["stkCallback"]["CallbackMetadata"]["Item"], fn
+            %{"Name" => "TransactionDate"} = i -> %{i | "Value" => 20_261_101_165_210}
+            i -> i
+          end)
+        )
+
+      Payments.handle_callback(payload)
+      assert %{mpesa_paid_at: t} = Orders.get_order!(o.id)
+      assert DateTime.to_iso8601(t) == "2026-11-01T13:52:10Z"
+    end
+
     test "replaying the same callback changes nothing", %{order: o} do
       p = sent!(o)
       payload = Fake.complete(p.checkout_request_id, :success, receipt: "RCPT101")

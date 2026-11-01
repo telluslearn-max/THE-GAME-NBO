@@ -16,6 +16,7 @@ defmodule TheGame.Orders.Order do
     field :paid_at, :utc_datetime
     field :ready_at, :utc_datetime
     field :completed_at, :utc_datetime
+    field :mpesa_paid_at, :utc_datetime
     field :claimed_by_name, :string
     field :claimed_at, :utc_datetime
     has_many :items, TheGame.Orders.Item
