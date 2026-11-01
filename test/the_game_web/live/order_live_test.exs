@@ -13,6 +13,10 @@ defmodule TheGameWeb.OrderLiveTest do
     {:ok, order: order, gin: gin}
   end
 
+  # The browser that just checked out carries the signed `fresh_order` session flag.
+  defp live_fresh(conn, o),
+    do: live(init_test_session(conn, %{"fresh_order" => o.id}), ~p"/order/#{o.id}")
+
   test "unknown order shows a calm not-found page", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/order/#{Ecto.UUID.generate()}")
     assert html =~ "Order not found"
@@ -22,23 +26,31 @@ defmodule TheGameWeb.OrderLiveTest do
     conn: conn,
     order: o
   } do
-    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, _} = live_fresh(conn, o)
     html = render(view)
     assert html =~ "Check your phone"
     assert html =~ "5678"
     assert Repo.aggregate(Payments.Payment, :count) == 1
 
     # a reload (or reconnect) must not prompt again
-    {:ok, view2, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view2, _} = live_fresh(conn, o)
     render(view2)
     assert Repo.aggregate(Payments.Payment, :count) == 1
+  end
+
+  test "a stranger holding the link never triggers a prompt", %{conn: conn, order: o} do
+    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    html = render(view)
+    assert html =~ "Send M-Pesa prompt"
+    refute html =~ "Check your phone"
+    assert Repo.aggregate(Payments.Payment, :count) == 0
   end
 
   test "payment confirmation reaches the page live and reveals the pickup code", %{
     conn: conn,
     order: o
   } do
-    {:ok, view, html} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, html} = live_fresh(conn, o)
     assert html =~ "Reference"
     assert html =~ ~s(data-status="pending_payment")
     render(view)
@@ -53,7 +65,7 @@ defmodule TheGameWeb.OrderLiveTest do
   end
 
   test "staff moving the order reaches the customer without a reload", %{conn: conn, order: o} do
-    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, _} = live_fresh(conn, o)
     Orders.mark_paid(o.id, "STF1")
     Orders.transition(o.id, :preparing)
     assert render(view) =~ "Being prepared"
@@ -65,7 +77,7 @@ defmodule TheGameWeb.OrderLiveTest do
   end
 
   test "a cancelled prompt offers a retry, and retry works", %{conn: conn, order: o} do
-    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, _} = live_fresh(conn, o)
     render(view)
     Fake.complete(Payments.latest_payment(o.id).checkout_request_id, :cancelled)
     html = render(view)
@@ -80,7 +92,7 @@ defmodule TheGameWeb.OrderLiveTest do
     order: o
   } do
     Application.put_env(:the_game, :stk_cooldown_seconds, 0)
-    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, _} = live_fresh(conn, o)
     html = render(view)
     assert html =~ "haven’t heard back from M-Pesa"
     assert Payments.latest_payment(o.id).checkout_request_id
@@ -103,7 +115,7 @@ defmodule TheGameWeb.OrderLiveTest do
     order: o,
     gin: gin
   } do
-    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, _} = live_fresh(conn, o)
     assert render(view) =~ "Cancel order"
 
     assert view |> element("button", "Cancel order") |> render_click() =~
@@ -118,7 +130,7 @@ defmodule TheGameWeb.OrderLiveTest do
     conn: conn,
     order: o
   } do
-    {:ok, view, _} = live(conn, ~p"/order/#{o.id}")
+    {:ok, view, _} = live_fresh(conn, o)
     render(view)
     p = Payments.latest_payment(o.id)
     Orders.expire_due(DateTime.add(DateTime.utc_now(), 3600))

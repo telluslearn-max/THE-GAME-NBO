@@ -9,7 +9,7 @@ defmodule TheGameWeb.OrderLive do
   alias TheGame.Orders.Order
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
+  def mount(%{"id" => id}, session, socket) do
     case Orders.get_order(id) do
       nil ->
         {:ok, assign(socket, order: nil, page_title: "Order not found — THE GAME")}
@@ -20,11 +20,16 @@ defmodule TheGameWeb.OrderLive do
         socket =
           socket
           |> assign(confirm_cancel: false, error: nil, info: nil, busy: false)
+          # Only the browser that just checked out may trigger the first prompt. Anyone else
+          # holding the link (a friend, staff) can look, but never makes a phone buzz.
+          |> assign(auto_pay: session["fresh_order"] == order.id)
           |> load(order)
 
         # First arrival after checkout: send the prompt straight away. request_stk's own
         # gates make this safe on reconnects and reloads.
-        if connected?(socket) and socket.assigns.pay == :none, do: send(self(), :auto_pay)
+        if connected?(socket) and socket.assigns.auto_pay and socket.assigns.pay == :none,
+          do: send(self(), :auto_pay)
+
         {:ok, socket}
     end
   end
@@ -205,9 +210,18 @@ defmodule TheGameWeb.OrderLive do
       </div>
 
       <section :if={@order.status == :pending_payment} class="panel" aria-live="polite">
-        <p :if={@pay == :none} class="p">
+        <p :if={@pay == :none and @auto_pay} class="p">
           Sending the M-Pesa prompt to the number ending <b class="mono">{last4(@order.payer_phone)}</b>…
         </p>
+        <div :if={@pay == :none and !@auto_pay}>
+          <p class="p">
+            This order is waiting for payment of <b class="mono">{money(@order.total_cents)}</b>
+            from the number ending <b class="mono">{last4(@order.payer_phone)}</b>.
+          </p>
+          <button class="btn" phx-click="pay" phx-disable-with="Sending…">
+            Send M-Pesa prompt
+          </button>
+        </div>
 
         <div :if={match?({:waiting, _}, @pay)}>
           <p class="p">

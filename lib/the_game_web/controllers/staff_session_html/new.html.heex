@@ -1,0 +1,33 @@
+<header class="wrap top">
+  <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
+  <span class="pill">Staff</span>
+</header>
+
+<main id="main" class="wrap narrow">
+  <h1 class="h1">Staff sign in</h1>
+  <p :if={@error} class="notice" role="alert">{@error}</p>
+  <form method="post" action={~p"/staff/login"}>
+    <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+    <label class="field" for="email">Email</label>
+    <input
+      class="text"
+      id="email"
+      name="email"
+      type="email"
+      autocomplete="username"
+      required
+      autofocus
+      autocapitalize="off"
+    />
+    <label class="field" for="password">Password</label>
+    <input
+      class="text"
+      id="password"
+      name="password"
+      type="password"
+      autocomplete="current-password"
+      required
+    />
+    <button class="btn" type="submit" style="margin-top:22px">Sign in</button>
+  </form>
+</main>

@@ -47,6 +47,30 @@ defmodule TheGame.Catalog do
     end
   end
 
+  def list_categories, do: Repo.all(from c in Category, order_by: [asc: c.position, asc: c.name])
+
+  @doc "Create a product and list it under a category. Price is in whole KES."
+  def create_product(attrs, category_id) do
+    Repo.transaction(fn ->
+      with {:ok, p} <- %Product{} |> Product.changeset(attrs) |> Repo.insert() do
+        Repo.insert_all("product_categories", [
+          %{
+            category_id: Ecto.UUID.dump!(category_id),
+            product_id: Ecto.UUID.dump!(p.id),
+            position: 999
+          }
+        ])
+
+        p
+      else
+        {:error, cs} -> Repo.rollback(cs)
+      end
+    end)
+    |> tap(fn r ->
+      if match?({:ok, _}, r), do: Phoenix.PubSub.broadcast(TheGame.PubSub, "menu", :menu_changed)
+    end)
+  end
+
   def subscribe, do: Phoenix.PubSub.subscribe(TheGame.PubSub, "menu")
 
   def money(cents) when is_integer(cents) do

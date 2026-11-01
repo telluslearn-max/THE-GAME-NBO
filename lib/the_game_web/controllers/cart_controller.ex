@@ -18,6 +18,7 @@ defmodule TheGameWeb.CartController do
            }) do
       conn
       |> History.add(order.id)
+      |> put_session(:fresh_order, order.id)
       |> redirect(to: ~p"/order/#{order.id}?new=1")
     else
       {:error, :pending_order} -> pending_order(conn, phone)

@@ -54,6 +54,49 @@ defmodule TheGame.Orders do
     |> Repo.all()
   end
 
+  @doc "Find orders by pickup code (any status, newest first). Staff recovery tool."
+  def find_by_code(code) when is_binary(code) do
+    code = code |> String.trim() |> String.upcase()
+
+    from(o in Order,
+      where: o.pickup_code == ^code,
+      order_by: [desc: o.inserted_at],
+      limit: 5,
+      preload: [:items]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Totals for the current EAT (UTC+3) calendar day."
+  def today_summary(now \\ DateTime.utc_now()) do
+    eat = DateTime.add(now, 3 * 3600)
+    start_eat = %{eat | hour: 0, minute: 0, second: 0, microsecond: {0, 0}}
+    from_utc = DateTime.add(start_eat, -3 * 3600)
+
+    settled = [:paid, :preparing, :ready, :completed, :flagged]
+
+    totals =
+      from(o in Order,
+        where: o.paid_at >= ^from_utc and o.status in ^[:paid, :preparing, :ready, :completed],
+        select: %{orders: count(o.id), revenue_cents: coalesce(sum(o.total_cents), 0)}
+      )
+      |> Repo.one()
+
+    by_product =
+      from(i in Item,
+        join: o in Order,
+        on: o.id == i.order_id,
+        where: o.paid_at >= ^from_utc and o.status in ^[:paid, :preparing, :ready, :completed],
+        group_by: i.name,
+        order_by: [desc: sum(i.qty), asc: i.name],
+        select: %{name: i.name, qty: sum(i.qty), cents: sum(i.qty * i.unit_price_cents)}
+      )
+      |> Repo.all()
+
+    open = Repo.aggregate(from(o in Order, where: o.status in ^settled), :count)
+    Map.merge(totals, %{by_product: by_product, open: open})
+  end
+
   ## Create
 
   @type error ::

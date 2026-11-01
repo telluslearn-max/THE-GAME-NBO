@@ -12,7 +12,8 @@ defmodule TheGame.Application do
         TheGameWeb.Telemetry,
         TheGame.Repo,
         {DNSCluster, query: Application.get_env(:the_game, :dns_cluster_query) || :ignore},
-        {Phoenix.PubSub, name: TheGame.PubSub}
+        {Phoenix.PubSub, name: TheGame.PubSub},
+        TheGame.Staff.RateLimit
       ] ++ gateway_children() ++ sweeper_children() ++ [TheGameWeb.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
