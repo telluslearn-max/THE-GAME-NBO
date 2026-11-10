@@ -3,7 +3,7 @@ const { chromium } = require("playwright");
 (async()=>{
  const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true}); const p=await ctx.newPage(); p.setDefaultTimeout(3000);
  const errs=[]; p.on("pageerror",e=>errs.push(e.message));
- await p.goto("http://localhost:4100/",{waitUntil:"networkidle"});
+ await p.goto("http://localhost:4100/menu",{waitUntil:"networkidle"});
  const g='#c-popular .row[data-name="KC Ginger"]';
  await p.tap(g+' [data-a="add"]'); await p.tap(g+' [data-a="inc"]');
  await p.tap('#c-popular .row[data-name="Coke"] [data-a="add"]');

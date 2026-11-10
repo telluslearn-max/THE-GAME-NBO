@@ -9,7 +9,7 @@ defmodule TheGameWeb.HardeningTest do
 
   describe "security headers" do
     test "strict CSP with no inline script and no third parties", %{conn: conn} do
-      [csp] = conn |> get("/") |> get_resp_header("content-security-policy")
+      [csp] = conn |> get("/menu") |> get_resp_header("content-security-policy")
       assert csp =~ "script-src 'self'"
       assert csp =~ "frame-ancestors 'none'"
       assert csp =~ "object-src 'none'"
@@ -19,7 +19,7 @@ defmodule TheGameWeb.HardeningTest do
     end
 
     test "no page ships inline scripts or inline style attributes", %{conn: conn} do
-      for path <- ["/", "/cart", "/orders", "/offline", "/staff/login"] do
+      for path <- ["/", "/menu", "/cart", "/orders", "/offline", "/staff/login"] do
         html = conn |> get(path) |> html_response(200)
         refute html =~ ~r/<script(?![^>]*\bsrc=)[^>]*>\s*\S/, "inline script on #{path}"
         refute html =~ ~r/\sstyle="/, "inline style on #{path}"
@@ -66,8 +66,8 @@ defmodule TheGameWeb.HardeningTest do
 
   describe "compression and conditional GET" do
     test "gzips the menu for clients that accept it", %{conn: conn} do
-      plain = conn |> get("/") |> response(200)
-      gz = build_conn() |> put_req_header("accept-encoding", "gzip, br") |> get("/")
+      plain = conn |> get("/menu") |> response(200)
+      gz = build_conn() |> put_req_header("accept-encoding", "gzip, br") |> get("/menu")
       assert get_resp_header(gz, "content-encoding") == ["gzip"]
       assert get_resp_header(gz, "vary") != []
       assert byte_size(gz.resp_body) < byte_size(plain) / 3
@@ -75,15 +75,15 @@ defmodule TheGameWeb.HardeningTest do
     end
 
     test "unchanged pages answer 304 with no body", %{conn: conn} do
-      first = get(conn, "/")
+      first = get(conn, "/menu")
       [etag] = get_resp_header(first, "etag")
-      again = build_conn() |> put_req_header("if-none-match", etag) |> get("/")
+      again = build_conn() |> put_req_header("if-none-match", etag) |> get("/menu")
       assert response(again, 304) == ""
     end
 
     test "the menu HTML is identical for different visitors (no per-session token)" do
-      a = build_conn() |> get("/") |> response(200)
-      b = build_conn() |> get("/") |> response(200)
+      a = build_conn() |> get("/menu") |> response(200)
+      b = build_conn() |> get("/menu") |> response(200)
       assert a == b
     end
 

@@ -4,7 +4,7 @@
 </header>
 
 <main id="main" class="wrap">
-  <a class="back" href={~p"/"}>← Menu</a>
+  <a class="back" href={~p"/menu"}>← Menu</a>
   <h1 class="h1">Your order</h1>
 
   <p :if={@error} class="notice" role="alert">{@error}</p>
@@ -15,7 +15,7 @@
 
   <div id="cart-empty" class="empty" hidden>
     <b>Your cart is empty</b>
-    <a class="btn ghost" href={~p"/"}>Browse the menu</a>
+    <a class="btn ghost" href={~p"/menu"}>Browse the menu</a>
   </div>
 
   <form id="cart-form" method="post" action={~p"/orders"} hidden>

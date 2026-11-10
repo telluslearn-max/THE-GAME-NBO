@@ -1,6 +1,6 @@
 <header class="wrap top">
   <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
-  <nav aria-label="Primary"><a class="navlink" href={~p"/"}>Menu</a></nav>
+  <nav aria-label="Primary"><a class="navlink" href={~p"/menu"}>Menu</a></nav>
 </header>
 
 <main id="main" class="wrap">
@@ -9,7 +9,7 @@
   <div :if={@orders == []} class="empty">
     <b>No orders on this phone yet</b>
     Orders you place here show up in this list.
-    <div><a class="btn ghost" href={~p"/"}>Browse the menu</a></div>
+    <div><a class="btn ghost" href={~p"/menu"}>Browse the menu</a></div>
   </div>
 
   <ul class="rows">

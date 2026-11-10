@@ -417,7 +417,7 @@ defmodule TheGameWeb.OrderLive do
             do: "The hold on your drinks ran out.",
             else: "This order was cancelled."} If you already paid, don’t pay again: show your waiter your M-Pesa message and they will check it.
         </p>
-        <a class="btn" href={~p"/"}>Start a new order</a>
+        <a class="btn" href={~p"/menu"}>Start a new order</a>
       </section>
 
       <section :if={@order.status in [:paid, :preparing, :ready]} class="panel slim">

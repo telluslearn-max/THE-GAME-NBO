@@ -8,7 +8,7 @@ const base = process.env.URL || "http://localhost:4100";
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process.exitCode = 1; };
 
-  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.goto(base + "/menu", { waitUntil: "networkidle" });
   await p.evaluate(() => localStorage.clear());
   await p.reload({ waitUntil: "networkidle" });
   const g = '#c-popular .row[data-name="KC Ginger"]';

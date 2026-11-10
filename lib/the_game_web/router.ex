@@ -30,7 +30,8 @@ defmodule TheGameWeb.Router do
   scope "/", TheGameWeb do
     pipe_through :browser
 
-    get "/", MenuController, :index
+    get "/", HomeController, :index
+    get "/menu", MenuController, :index
     get "/offline", OfflineController, :show
     get "/cart", CartController, :show
     post "/orders", CartController, :create

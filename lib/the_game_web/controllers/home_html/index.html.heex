@@ -1,0 +1,42 @@
+<header class="wrap top">
+  <a class="brand" href={~p"/"} aria-label="THE GAME, home"><TheGameWeb.Layouts.wordmark /></a>
+  <nav aria-label="Primary">
+    <span class={["pill", @paused && "off"]}>
+      <span class="pt">{if @paused, do: "Paused", else: "Open"}</span>
+    </span>
+    <a class="navlink" href={~p"/orders"}>Orders</a>
+  </nav>
+</header>
+
+<main id="main">
+  <div class="wrap">
+    <section class="hero">
+      <p class="kicker">Nairobi · Drinks · Table service</p>
+      <h1>Order from your table.<br />Skip the queue.</h1>
+      <p class="sub">
+        Pick your drinks on your phone, pay at the till with M-Pesa, and your waiter brings them to you.
+      </p>
+      <p :if={@paused} class="notice" role="status">
+        Ordering is paused for a short stock count. Check back soon.
+      </p>
+      <a class="btn" href={~p"/menu"}>See the menu</a>
+      <a class="btn ghost" href={~p"/orders"}>My orders</a>
+    </section>
+
+    <section class="how" aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <ol class="flow">
+        <li><b>Choose</b><span>Browse the menu and add your drinks. No app, no sign-up.</span></li>
+        <li><b>Pay</b><span>Send the total by M-Pesa at the till. Copy buttons make it quick.</span></li>
+        <li><b>Collect</b><span>Show your code. Your waiter brings your drinks to the table.</span></li>
+      </ol>
+    </section>
+  </div>
+</main>
+
+<footer class="wrap foot">
+  <span>THE GAME</span>
+  <a href={~p"/menu"}>Menu</a>
+  <a href={~p"/orders"}>Orders</a>
+  <a href={~p"/staff"}>Staff</a>
+</footer>

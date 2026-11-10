@@ -12,7 +12,7 @@ const base = process.env.URL || "http://localhost:4100";
   let bytes = 0; const files = [];
   p.on("response", async (r) => { try { const x = await r.body(); const c = zlib.brotliCompressSync(x).length; bytes += c; files.push([new URL(r.url()).pathname.slice(0, 40), c]); } catch (e) {} });
 
-  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.goto(base + "/menu", { waitUntil: "networkidle" });
   await p.evaluate(() => localStorage.clear());
   await p.reload({ waitUntil: "networkidle" });
   await p.tap('#c-popular .row[data-name="Coke"] [data-a="add"]');

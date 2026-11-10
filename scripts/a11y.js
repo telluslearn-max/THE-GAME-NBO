@@ -15,13 +15,13 @@ const axeSrc = fs.readFileSync(process.env.AXE || "/tmp/axe.min.js", "utf8");
     console.log(`${v.length ? "FAIL" : "PASS"} ${name}: ${v.length} violations (${r.passes.length} rules passed)`);
     for (const x of v) { bad++; console.log(`   - [${x.impact}] ${x.id}: ${x.help} (${x.nodes.length} nodes) e.g. ${x.nodes[0].target.join(" ")} :: ${(x.nodes[0].failureSummary || "").split("\n")[1] || ""}`); }
   }
-  await audit("menu", "/");
-  await audit("menu with items in cart", "/", async () => { await p.tap?.('.row .add').catch(() => {}); await p.click(".row .add"); });
+  await audit("menu", "/menu");
+  await audit("menu with items in cart", "/menu", async () => { await p.tap?.('.row .add').catch(() => {}); await p.click(".row .add"); });
   await audit("cart", "/cart", async () => { await p.waitForTimeout(500); });
   await audit("offline page", "/offline");
   await audit("orders list", "/orders");
   // a real order page (live view) and the ready state
-  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.goto(base + "/menu", { waitUntil: "networkidle" });
   await p.evaluate(() => localStorage.clear()); await p.reload({ waitUntil: "networkidle" });
   await p.click('#c-popular .row[data-name="Water"] .add'); await p.click(".cartbar a"); await p.waitForURL("**/cart");
   await p.waitForSelector("#lines .row"); await p.fill("#phone", "07" + Math.floor(10000000 + Math.random() * 89999999));

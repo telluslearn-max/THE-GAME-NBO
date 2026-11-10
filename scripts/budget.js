@@ -48,7 +48,7 @@ async function page(name, path, budget, headers) {
 }
 
 (async () => {
-  await page("menu", "/", BUDGET.menu);
+  await page("menu", "/menu", BUDGET.menu);
   await page("cart", "/cart", BUDGET.cart);
   await page("staff-login", "/staff/login", BUDGET.staff_login);
 

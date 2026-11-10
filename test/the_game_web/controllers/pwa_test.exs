@@ -32,7 +32,7 @@ defmodule TheGameWeb.PwaTest do
   end
 
   test "every page links the manifest, touch icon and theme colour", %{conn: conn} do
-    html = conn |> get("/") |> html_response(200)
+    html = conn |> get("/menu") |> html_response(200)
     assert html =~ ~s(rel="manifest")
     assert html =~ "apple-touch-icon"
     assert html =~ ~s(name="theme-color")

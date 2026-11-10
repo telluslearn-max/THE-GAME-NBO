@@ -17,7 +17,7 @@ for i in $(seq 1 40); do curl -fs "http://localhost:$PORT/healthz" >/dev/null 2>
 fail=0
 check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fail=1; fi; }
 check "healthz answers ok"          '[ "$(curl -fs http://localhost:$PORT/healthz)" = ok ]'
-check "menu renders seeded drinks"  'curl -fs http://localhost:$PORT/ | grep -q "KC Ginger"'
+check "menu renders seeded drinks"  'curl -fs http://localhost:$PORT/menu | grep -q "KC Ginger"'
 check "menu feed is JSON"           'curl -fs http://localhost:$PORT/menu.json | grep -q "\"paused\":false"'
 check "staff area demands login"    '[ "$(curl -s -o /dev/null -w %{http_code} http://localhost:$PORT/staff)" = 302 ]'
 check "security headers present"    'curl -sI http://localhost:$PORT/ | grep -qi "content-security-policy"'

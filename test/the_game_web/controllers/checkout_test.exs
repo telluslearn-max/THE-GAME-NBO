@@ -27,7 +27,7 @@ defmodule TheGameWeb.CheckoutTest do
     html = conn |> get(~p"/cart") |> html_response(200)
     assert html =~ ~s(id="cart-form")
     assert html =~ ~r|<script[^>]*src="/assets/js/cart[^"]*\.js|
-    refute conn |> get(~p"/") |> html_response(200) =~ "/assets/js/cart"
+    refute conn |> get(~p"/menu") |> html_response(200) =~ "/assets/js/cart"
     assert html =~ ~s(name="_csrf_token")
   end
 

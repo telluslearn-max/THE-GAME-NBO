@@ -9,14 +9,14 @@ const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) process
   const p = await ctx.newPage(); p.setDefaultTimeout(15000);
   const errs = []; p.on("pageerror", (e) => errs.push(e.message));
 
-  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.goto(base + "/menu", { waitUntil: "networkidle" });
   await p.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await p.waitForFunction(() => navigator.serviceWorker.controller || true);
   await p.reload({ waitUntil: "networkidle" });
   ok(await p.evaluate(() => !!navigator.serviceWorker.controller), "service worker controls the page");
 
   const keys = await p.evaluate(async () => { const c = await caches.open((await caches.keys())[0]); return (await c.keys()).map((r) => new URL(r.url).pathname); });
-  ok(keys.includes("/") && keys.includes("/offline"), "shell + offline page precached");
+  ok(keys.includes("/menu") && keys.includes("/offline"), "shell + offline page precached");
   ok(keys.some((k) => k.startsWith("/assets/css/")) && keys.some((k) => k.startsWith("/assets/js/app-")), "css + js precached");
   ok(keys.some((k) => k.startsWith("/assets/js/cart-")), "cart script precached (so the cart works offline)");
   ok(!keys.includes("/cart") && !keys.some((k) => k.startsWith("/order") || k.startsWith("/staff") || k === "/menu.json"), "no money / auth pages in the cache: " + keys.length + " entries");

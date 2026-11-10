@@ -7,7 +7,7 @@ defmodule TheGameWeb.MenuControllerTest do
     b = product(%{name: "Rum Bravo", stock: 0})
     category("Spirits", [a, b])
 
-    html = conn |> get(~p"/") |> html_response(200)
+    html = conn |> get(~p"/menu") |> html_response(200)
     assert html =~ "Gin Alpha"
     assert html =~ "KES 1,250"
     assert html =~ ~s(href="#c-spirits")
@@ -19,7 +19,7 @@ defmodule TheGameWeb.MenuControllerTest do
   test "paused ordering shows the notice and hides Add buttons", %{conn: conn} do
     category("Spirits", [product(%{name: "Gin Alpha"})])
     TheGame.Settings.pause_ordering(true)
-    html = conn |> get(~p"/") |> html_response(200)
+    html = conn |> get(~p"/menu") |> html_response(200)
     assert html =~ "Ordering is paused"
     refute html =~ ~s(data-a="add")
   end
